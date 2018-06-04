@@ -1,11 +1,13 @@
 import pandas as pd
 import argparse
-
+from feature import Feature
 def feature(data):
     '''
     :param data: DataFrame of original data
     :return: new DataFrame with classical features
     '''
+
+
     return data
 
 def predict(data):
@@ -24,6 +26,7 @@ if __name__ =='__main__':
     out_path = args.output
 
     test = pd.read_csv(in_path,sep='\t',header=None)
+fea = Feature(test)
     test_feature = feature(test)
     result = predict(test_feature)
     test[4] = result
