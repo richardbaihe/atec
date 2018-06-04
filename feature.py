@@ -1,7 +1,7 @@
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 
 class Feature():
-    def __init__(self):
+    def __init__(self,data):
         return
 
     def LDA_simlar(self):
