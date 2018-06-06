@@ -8,15 +8,21 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from collections import Counter
 import codecs
+import six
 
 class Feature():
     def __init__(self,data):
         # stopwords
         stpwrdpath = "data/stop_words"
         self.stpwrdlst = []
-        for line in open(stpwrdpath, 'r'):
-            word = line.strip().decode('gbk')
-            self.stpwrdlst.append(word)
+        if six.PY2:
+            for line in open(stpwrdpath, 'r'):
+                word = line.strip().decode('gbk')
+                self.stpwrdlst.append(word)
+        else:
+            for line in open(stpwrdpath, 'r',encoding='utf-8'):
+                word = line.strip()
+                self.stpwrdlst.append(word)
         # word2index
         dic = {}
         for index, line in enumerate(codecs.open('data/vocab.txt', 'r', encoding='utf-8')):
@@ -24,8 +30,8 @@ class Feature():
             if int(freq) <= 5:
                 self.stpwrdlst.append(word)
             dic[word] = index
-        data['q1'] = data['seg_Ax'].apply(lambda x: map(lambda y: dic[y], x.split()))
-        data['q2'] = data['seg_Bx'].apply(lambda x: map(lambda y: dic[y], x.split()))
+        # data['q1'] = data['seg_Ax'].apply(lambda x: map(lambda y: dic[y], x.split()))
+        # data['q2'] = data['seg_Bx'].apply(lambda x: map(lambda y: dic[y], x.split()))
         self.data = data
         self.features = pd.DataFrame()
 
@@ -51,11 +57,11 @@ class Feature():
             q1words = {}
             q2words = {}
             for word in row['seg_Ax'].lower().split():
-                #if word not in self.stpwrdlst:
-                q1words[word] = 1
+                if word not in self.stpwrdlst:
+                    q1words[word] = 1
             for word in row['seg_Bx'].lower().split():
-                #if word not in self.stpwrdlst:
-                q2words[word] = 1
+                if word not in self.stpwrdlst:
+                    q2words[word] = 1
             if len(q1words) == 0 or len(q2words) == 0:
                 # The computer-generated chaff includes a few questions that are nothing but stopwords
                 return max(len(q1words), len(q2words))
