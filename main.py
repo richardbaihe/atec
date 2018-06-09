@@ -19,7 +19,7 @@ if __name__ =='__main__':
     fea.tfidf_sim()
     test_data = fea.features
 
-    model = XGB(model_name='model.xgb')
+    model = XGB(model_name='xgb.model')
     result = model.predict(test_data)
 
     test[4] = result

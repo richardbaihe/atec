@@ -20,7 +20,7 @@ class Feature():
                 word = line.strip().decode('gbk')
                 self.stpwrdlst.append(word)
         else:
-            for line in open(stpwrdpath, 'r',encoding='utf-8'):
+            for line in open(stpwrdpath, 'r',encoding='gbk'):
                 word = line.strip()
                 self.stpwrdlst.append(word)
         # word2index
@@ -34,6 +34,8 @@ class Feature():
         # data['q2'] = data['seg_Bx'].apply(lambda x: map(lambda y: dic[y], x.split()))
         self.data = data
         self.features = pd.DataFrame()
+        if 'label' in data.columns:
+            self.features['label'] = data.label
 
     def LDA_simlar(self):
         corpus = pd.concat([self.data['seg_Ax'], self.data['seg_Bx']])
