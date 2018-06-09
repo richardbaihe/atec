@@ -23,9 +23,10 @@ if __name__ =='__main__':
     valid_data = fea.features.iloc[valid_index]
 
     model = XGB(model_name='xgb.model')
-    model.train(train_data,valid_data)
-    label = valid_data.pop('label')
+    train_label = train_data.pop('label')
+    valid_label = valid_data.pop('label')
+    model.train(train_data,valid_data,train_label,valid_label)
     result = model.predict(valid_data)
-    f1 = f1_score(label,result)
+    f1 = f1_score(valid_label,result)
 
     print('F1_score of valid data:\t', f1)
