@@ -27,6 +27,6 @@ if __name__ =='__main__':
     valid_label = valid_data.pop('label')
     model.train(train_data,valid_data,train_label,valid_label)
     result = model.predict(valid_data)
-    f1 = f1_score(valid_label,result)
+    f1 = f1_score(valid_label.values,result)
 
     print('F1_score of valid data:\t', f1)

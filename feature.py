@@ -4,6 +4,7 @@ import numpy as np
 import scipy
 from scipy.spatial import distance
 from sklearn.decomposition import LatentDirichletAllocation
+from sklearn.decomposition import TruncatedSVD
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from collections import Counter
@@ -15,14 +16,14 @@ class Feature():
         # stopwords
         stpwrdpath = "data/stop_words"
         self.stpwrdlst = []
-        if six.PY2:
-            for line in open(stpwrdpath, 'r'):
-                word = line.strip().decode('gbk')
-                self.stpwrdlst.append(word)
-        else:
-            for line in open(stpwrdpath, 'r',encoding='gbk'):
-                word = line.strip()
-                self.stpwrdlst.append(word)
+        # if six.PY2:
+        #     for line in open(stpwrdpath, 'r'):
+        #         word = line.strip().decode('gbk')
+        #         self.stpwrdlst.append(word)
+        # else:
+        #     for line in open(stpwrdpath, 'r',encoding='gbk'):
+        #         word = line.strip()
+        #         self.stpwrdlst.append(word)
         # word2index
         dic = {}
         for index, line in enumerate(codecs.open('data/vocab.txt', 'r', encoding='utf-8')):
@@ -54,36 +55,20 @@ class Feature():
         lda_sim = pd.DataFrame([distance.cosine(x, y) for x, y in zip(lda_q1, lda_q2)])
         self.features['lda_sim'] = lda_sim
 
-    def ED_distance(self):
-        def edit_distance(row):
-            q1words = {}
-            q2words = {}
-            for word in row['seg_Ax'].lower().split():
-                if word not in self.stpwrdlst:
-                    q1words[word] = 1
-            for word in row['seg_Bx'].lower().split():
-                if word not in self.stpwrdlst:
-                    q2words[word] = 1
-            if len(q1words) == 0 or len(q2words) == 0:
-                # The computer-generated chaff includes a few questions that are nothing but stopwords
-                return max(len(q1words), len(q2words))
-            a_sp = list(q1words.keys())
-            b_sp = list(q2words.keys())
-            dp = [[0 for _ in range(len(a_sp) + 1)] for __ in range(len(b_sp) + 1)]
-            dp[0] = [i for i in range(len(a_sp) + 1)]
-            for i in range(len(b_sp) + 1):
-                dp[i][0] = i
-            for i in range(len(b_sp)):
-                for j in range(len(a_sp)):
-                    if a_sp[j] == b_sp[i]:
-                        temp = 0
-                    else:
-                        temp = 1
-                    dp[i + 1][j + 1] = min(dp[i][j] + temp, dp[i][j + 1] + 1, dp[i + 1][j] + 1)
-            return dp[-1][-1]
+    def LSA_simlar(self):
+        corpus = pd.concat([self.data['seg_Ax'], self.data['seg_Bx']])
+        cntVector = CountVectorizer(stop_words=self.stpwrdlst)
+        cntTf = cntVector.fit_transform(corpus)
 
-        train_edit_distance = self.data.apply(edit_distance, axis=1, raw=True)
-        self.features['ed'] = train_edit_distance
+        lsa = TruncatedSVD(n_components=100, random_state=0)
+
+        docres = lsa.fit_transform(cntTf)
+
+        lsa_q1 = docres[:docres.shape[0] / 2]
+        lsa_q2 = docres[docres.shape[0] / 2:]
+
+        lsa_sim = pd.DataFrame([distance.cosine(x, y) for x, y in zip(lsa_q1, lsa_q2)])
+        self.features['lsa_sim'] = lsa_sim
 
     def tfidf_share(self):
         corpus = pd.concat([self.data['seg_Ax'], self.data['seg_Bx']])
@@ -137,3 +122,63 @@ class Feature():
 
         #tfidf_sim = pd.DataFrame(tfidf_sim)
         self.features['tfidf_sim']=tfidf_sim
+
+    def ED_distance(self):
+        def edit_distance(row):
+            q1words = {}
+            q2words = {}
+            for word in row['seg_Ax'].lower().split():
+                if word not in self.stpwrdlst:
+                    q1words[word] = 1
+            for word in row['seg_Bx'].lower().split():
+                if word not in self.stpwrdlst:
+                    q2words[word] = 1
+            if len(q1words) == 0 or len(q2words) == 0:
+                # The computer-generated chaff includes a few questions that are nothing but stopwords
+                return max(len(q1words), len(q2words))
+            a_sp = list(q1words.keys())
+            b_sp = list(q2words.keys())
+            dp = [[0 for _ in range(len(a_sp) + 1)] for __ in range(len(b_sp) + 1)]
+            dp[0] = [i for i in range(len(a_sp) + 1)]
+            for i in range(len(b_sp) + 1):
+                dp[i][0] = i
+            for i in range(len(b_sp)):
+                for j in range(len(a_sp)):
+                    if a_sp[j] == b_sp[i]:
+                        temp = 0
+                    else:
+                        temp = 1
+                    dp[i + 1][j + 1] = min(dp[i][j] + temp, dp[i][j + 1] + 1, dp[i + 1][j] + 1)
+            return dp[-1][-1]
+
+        train_edit_distance = self.data.apply(edit_distance, axis=1, raw=True)
+        self.features['ed'] = train_edit_distance
+
+    def words_overlap(self):
+        def word_match_share(row):
+            q1words = {}
+            q2words = {}
+            for word in row['seg_Ax'].lower().split():
+                if word not in self.stpwrdlst:
+                    q1words[word] = 1
+            for word in row['seg_Bx'].lower().split():
+                if word not in self.stpwrdlst:
+                    q2words[word] = 1
+            if len(q1words) == 0 or len(q2words) == 0:
+                # The computer-generated chaff includes a few questions that are nothing but stopwords
+                return 0
+            shared_words_in_q1 = [w for w in q1words.keys() if w in q2words]
+            shared_words_in_q2 = [w for w in q2words.keys() if w in q1words]
+            R = (len(shared_words_in_q1) + len(shared_words_in_q2)) / (len(q1words) + len(q2words))
+            return R
+        word_overlap = self.data.apply(word_match_share, axis=1, raw=True)
+        self.features['word_overlap'] = word_overlap
+
+    def length(self):
+        self.features['len_A'] = self.data['seg_Ax'].apply(lambda x: len(x.split()))
+        self.features['len_B'] = self.data['seg_Bx'].apply(lambda x: len(x.split()))
+        self.features['len_diff'] = self.features['len_A']-self.features['len_B']
+
+
+
+

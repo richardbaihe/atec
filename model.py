@@ -31,5 +31,5 @@ class XGB():
 
     def predict(self,test_data):
         model = joblib.load(self.model_name)
-        result = model.predict_proba(test_data)[:, 1]
+        result = model.predict(test_data)
         return result
