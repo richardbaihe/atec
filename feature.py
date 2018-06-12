@@ -1,6 +1,8 @@
 # -*-coding=utf-8 -*-
 import pandas as pd
 import numpy as np
+from gensim import similarities,models,corpora
+from gensim.models.phrases import Phraser
 import scipy
 from scipy.spatial import distance
 from sklearn.decomposition import LatentDirichletAllocation
@@ -25,14 +27,24 @@ class Feature():
         #         word = line.strip()
         #         self.stpwrdlst.append(word)
         # word2index
-        dic = {}
-        for index, line in enumerate(codecs.open('data/vocab.txt', 'r', encoding='utf-8')):
-            word, freq = line.split()
-            if int(freq) <= 5:
-                self.stpwrdlst.append(word)
-            dic[word] = index
-        # data['q1'] = data['seg_Ax'].apply(lambda x: map(lambda y: dic[y], x.split()))
-        # data['q2'] = data['seg_Bx'].apply(lambda x: map(lambda y: dic[y], x.split()))
+        # dic = {}
+        # for index, line in enumerate(codecs.open('data/vocab.txt', 'r', encoding='utf-8')):
+        #     word, freq = line.split()
+        #     if int(freq) <= 5:
+        #         self.stpwrdlst.append(word)
+        #     dic[word] = index
+        from collections import defaultdict
+
+        df_texts = pd.concat([self.data['seg_Ax'], self.data['seg_Bx']])
+        texts = df_texts.apply(lambda x: [word for word in x.split() if word not in self.stpwrdlst]).values
+        frequency = defaultdict(int)
+        for text in texts:
+            for token in text:
+                frequency[token] += 1
+        self.texts = [[token for token in text if frequency[token]>1] for text in texts]
+        self.dictionary = corpora.Dictionary(self.texts)
+        self.corpus = self.dictionary.doc2bow[self.texts]
+
         self.data = data
         self.features = pd.DataFrame()
         if 'label' in data.columns:
@@ -179,6 +191,14 @@ class Feature():
         self.features['len_B'] = self.data['seg_Bx'].apply(lambda x: len(x.split()))
         self.features['len_diff'] = self.features['len_A']-self.features['len_B']
 
-
-
+    def ngram_simlar(self,n=8): 
+        cur_gram = self.texts
+        for i in range(1,n+1):
+            cur_gram_q1 = cur_gram[:len(cur_gram) // 2]
+            cur_gram_q2 = cur_gram[len(cur_gram) // 2:]
+            self.data[str(n)+'-sim'] = [distance.cosine(x,y) for x,y ]
+            phrases = models.Phrases(cur_gram)
+            next_gram_model = Phraser(phrases)
+            next_gram = next_gram_model[cur_gram]
+            cur_gram = next_gram
 
