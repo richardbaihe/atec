@@ -196,7 +196,7 @@ class Feature():
         for i in range(1,n+1):
             cur_gram_q1 = cur_gram[:len(cur_gram) // 2]
             cur_gram_q2 = cur_gram[len(cur_gram) // 2:]
-            self.data[str(n)+'-sim'] = [distance.cosine(x,y) for x,y ]
+            self.data[str(n)+'-sim'] = [distance.cosine(x,y) for x,y in zip(cur_gram_q1,cur_gram_q2)]
             phrases = models.Phrases(cur_gram)
             next_gram_model = Phraser(phrases)
             next_gram = next_gram_model[cur_gram]
