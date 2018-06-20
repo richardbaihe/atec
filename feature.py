@@ -9,7 +9,7 @@ from sklearn.decomposition import LatentDirichletAllocation
 from sklearn.decomposition import TruncatedSVD
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
-from collections import Counter
+from collections import Counter,defaultdict
 import codecs
 import six
 
@@ -33,9 +33,8 @@ class Feature():
         #     if int(freq) <= 5:
         #         self.stpwrdlst.append(word)
         #     dic[word] = index
-        from collections import defaultdict
 
-        df_texts = pd.concat([self.data['seg_Ax'], self.data['seg_Bx']])
+        df_texts = pd.concat([data['seg_Ax'], data['seg_Bx']])
         texts = df_texts.apply(lambda x: [word for word in x.split() if word not in self.stpwrdlst]).values
         frequency = defaultdict(int)
         for text in texts:
@@ -43,7 +42,7 @@ class Feature():
                 frequency[token] += 1
         self.texts = [[token for token in text if frequency[token]>1] for text in texts]
         self.dictionary = corpora.Dictionary(self.texts)
-        self.corpus = self.dictionary.doc2bow[self.texts]
+        #self.corpus = self.dictionary.doc2bow(self.texts)
 
         self.data = data
         self.features = pd.DataFrame()
@@ -130,7 +129,8 @@ class Feature():
         tfidf_q2 = tfidf[tfidf.shape[0] // 2:]
 
         tfidf_sim = [distance.cosine(x, y) for x, y in
-                     zip(scipy.sparse.csr_matrix.todense(tfidf_q1), scipy.sparse.csr_matrix.todense(tfidf_q2))]
+                     zip(scipy.sparse.csr_matrix.todense(tfidf_q1),
+                         scipy.sparse.csr_matrix.todense(tfidf_q2))]
 
         #tfidf_sim = pd.DataFrame(tfidf_sim)
         self.features['tfidf_sim']=tfidf_sim
@@ -191,12 +191,18 @@ class Feature():
         self.features['len_B'] = self.data['seg_Bx'].apply(lambda x: len(x.split()))
         self.features['len_diff'] = self.features['len_A']-self.features['len_B']
 
-    def ngram_simlar(self,n=8): 
-        cur_gram = self.texts
+    def ngram_simlar(self,n=8):
+        corpus = pd.concat([self.data['seg_Ax'], self.data['seg_Bx']])
+        cntVector = CountVectorizer(stop_words=self.stpwrdlst)
+        cur_gram = cntVector.fit_transform(corpus)
+
+        # cur_gram = self.texts
         for i in range(1,n+1):
-            cur_gram_q1 = cur_gram[:len(cur_gram) // 2]
-            cur_gram_q2 = cur_gram[len(cur_gram) // 2:]
-            self.data[str(n)+'-sim'] = [distance.cosine(x,y) for x,y ]
+            cur_gram_q1 = cur_gram[:cur_gram.shape[0] // 2]
+            cur_gram_q2 = cur_gram[cur_gram.shape[0] // 2:]
+            self.data[str(n)+'-sim'] = [distance.cosine(x,y) for x,y in
+                                        zip(scipy.sparse.csr_matrix.todense(cur_gram_q1),
+                                            scipy.sparse.csr_matrix.todense(cur_gram_q2))]
             phrases = models.Phrases(cur_gram)
             next_gram_model = Phraser(phrases)
             next_gram = next_gram_model[cur_gram]

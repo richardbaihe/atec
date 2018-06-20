@@ -13,9 +13,10 @@ if __name__ =='__main__':
     data['label'] = pd.read_csv('data/label.txt',header=None)
 
     fea = Feature(data)
-    fea.ED_distance()
-    fea.tfidf_share()
-    fea.tfidf_sim()
+    fea.LDA_simlar()
+    # fea.ED_distance()
+    # fea.tfidf_share()
+    # fea.tfidf_sim()
 
     valid_index = np.load('data/valid_index.npy')
     train_index = list(set(valid_index)^set(data.index))
