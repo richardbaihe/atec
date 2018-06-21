@@ -19,9 +19,9 @@ class XGB():
             gamma=1,
             silent=1,
             subsample=0.8,
-            colsample_bytree=0.8,
+            colsample_bytree=1,
             objective='binary:logistic',
-            #        scale_pos_weight=1
+            scale_pos_weight=6,
             seed=19931218
         )
         # find the suitable amounts of estimators

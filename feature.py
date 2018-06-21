@@ -1,20 +1,20 @@
 # -*-coding=utf-8 -*-
+from __future__ import division
 import pandas as pd
 import numpy as np
-from gensim import similarities,models,corpora
+from gensim import models,corpora
 from gensim.models.phrases import Phraser
-import scipy
+import scipy,codecs,six,re,os
 from scipy.spatial import distance
 from sklearn.decomposition import LatentDirichletAllocation
 from sklearn.decomposition import TruncatedSVD
 from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.feature_extraction.text import TfidfVectorizer
+from gensim.models import TfidfModel
 from collections import Counter,defaultdict
-import codecs
-import six
+import jieba
 
 class Feature():
-    def __init__(self,data):
+    def __init__(self,data,tr=True):
         # stopwords
         stpwrdpath = "data/stop_words"
         self.stpwrdlst = []
@@ -33,20 +33,31 @@ class Feature():
         #     if int(freq) <= 5:
         #         self.stpwrdlst.append(word)
         #     dic[word] = index
+        self.tr=tr
+        if not tr:
+            data.columns = ['index', 'A', 'B']
+            jieba.load_userdict("dict.txt")
+            data['seg_A'] = data['A'].apply(lambda x: ' '.join(jieba.cut(x.strip(), cut_all=False)))
+            data['seg_B'] = data['B'].apply(lambda x: ' '.join(jieba.cut(x.strip(), cut_all=False)))
 
-        df_texts = pd.concat([data['seg_Ax'], data['seg_Bx']])
-        texts = df_texts.apply(lambda x: [word for word in x.split() if word not in self.stpwrdlst]).values
+            pattern = re.compile(r'\*+')
+            data['Ax'] = data['A'].apply(lambda x: re.sub(pattern, '*', x))
+            data['Bx'] = data['B'].apply(lambda x: re.sub(pattern, '*', x))
+
+            data['seg_Ax'] = data['Ax'].apply(lambda x: ' '.join(jieba.cut(x.strip(), cut_all=False)))
+            data['seg_Bx'] = data['Bx'].apply(lambda x: ' '.join(jieba.cut(x.strip(), cut_all=False)))
+
+        self.df_texts = pd.concat([data['seg_Ax'], data['seg_Bx']])
+        texts = self.df_texts.apply(lambda x: [word for word in x.split()
+                                               if word not in self.stpwrdlst]).values
         frequency = defaultdict(int)
         for text in texts:
             for token in text:
                 frequency[token] += 1
         self.texts = [[token for token in text if frequency[token]>1] for text in texts]
-        self.dictionary = corpora.Dictionary(self.texts)
-        #self.corpus = self.dictionary.doc2bow(self.texts)
-
         self.data = data
         self.features = pd.DataFrame()
-        if 'label' in data.columns:
+        if self.tr:
             self.features['label'] = data.label
 
     def LDA_simlar(self):
@@ -81,68 +92,14 @@ class Feature():
         lsa_sim = pd.DataFrame([distance.cosine(x, y) for x, y in zip(lsa_q1, lsa_q2)])
         self.features['lsa_sim'] = lsa_sim
 
-    def tfidf_share(self):
-        corpus = pd.concat([self.data['seg_Ax'], self.data['seg_Bx']])
-
-        # If a word appears only once, we ignore it completely (likely a typo)
-        # Epsilon defines a smoothing constant, which makes the effect of extremely rare words smaller
-        def get_weight(count, eps=10000, min_count=2):
-            if count < min_count:
-                return 0
-            else:
-                return 1.0 / (count + eps)
-
-        words = (" ".join(corpus)).lower().split()
-        counts = Counter(words)
-        weights = {word: get_weight(count) for word, count in counts.items()}
-
-        def tfidf_word_match_share(row):
-            q1words = {}
-            q2words = {}
-            for word in row['seg_Ax'].lower().split():
-                if word not in self.stpwrdlst:
-                    q1words[word] = 1
-            for word in row['seg_Bx'].lower().split():
-                if word not in self.stpwrdlst:
-                    q2words[word] = 1
-            if len(q1words) == 0 or len(q2words) == 0:
-                # The computer-generated chaff includes a few questions that are nothing but stopwords
-                return 0
-
-            shared_weights = [weights.get(w, 0) for w in q1words.keys() if w in q2words] + [weights.get(w, 0) for w in
-                                                                                            q2words.keys() if
-                                                                                            w in q1words]
-            total_weights = [weights.get(w, 0) for w in q1words] + [weights.get(w, 0) for w in q2words]
-
-            R = np.sum(shared_weights) / np.sum(total_weights)
-            return R
-
-        tfidf_train_word_match = self.data.apply(tfidf_word_match_share, axis=1, raw=True)
-        self.features['tfidf_share'] = tfidf_train_word_match
-
-    def tfidf_sim(self):
-        corpus = pd.concat([self.data['seg_Ax'], self.data['seg_Bx']])
-
-        vector = TfidfVectorizer(stop_words=self.stpwrdlst)
-        tfidf = vector.fit_transform(corpus)
-        tfidf_q1 = tfidf[:tfidf.shape[0] // 2]
-        tfidf_q2 = tfidf[tfidf.shape[0] // 2:]
-
-        tfidf_sim = [distance.cosine(x, y) for x, y in
-                     zip(scipy.sparse.csr_matrix.todense(tfidf_q1),
-                         scipy.sparse.csr_matrix.todense(tfidf_q2))]
-
-        #tfidf_sim = pd.DataFrame(tfidf_sim)
-        self.features['tfidf_sim']=tfidf_sim
-
     def ED_distance(self):
         def edit_distance(row):
             q1words = {}
             q2words = {}
-            for word in row['seg_Ax'].lower().split():
+            for word in ''.join(row['seg_Ax'].lower().split()):
                 if word not in self.stpwrdlst:
                     q1words[word] = 1
-            for word in row['seg_Bx'].lower().split():
+            for word in ''.join(row['seg_Bx'].lower().split()):
                 if word not in self.stpwrdlst:
                     q2words[word] = 1
             if len(q1words) == 0 or len(q2words) == 0:
@@ -166,45 +123,96 @@ class Feature():
         train_edit_distance = self.data.apply(edit_distance, axis=1, raw=True)
         self.features['ed'] = train_edit_distance
 
-    def words_overlap(self):
-        def word_match_share(row):
-            q1words = {}
-            q2words = {}
-            for word in row['seg_Ax'].lower().split():
-                if word not in self.stpwrdlst:
-                    q1words[word] = 1
-            for word in row['seg_Bx'].lower().split():
-                if word not in self.stpwrdlst:
-                    q2words[word] = 1
-            if len(q1words) == 0 or len(q2words) == 0:
-                # The computer-generated chaff includes a few questions that are nothing but stopwords
-                return 0
-            shared_words_in_q1 = [w for w in q1words.keys() if w in q2words]
-            shared_words_in_q2 = [w for w in q2words.keys() if w in q1words]
+    def ngram_share(self,n=6):
+        def word_match_share(q1words,q2words):
+            shared_words_in_q1 = [w for w in q1words if w in q2words]
+            shared_words_in_q2 = [w for w in q2words if w in q1words]
             R = (len(shared_words_in_q1) + len(shared_words_in_q2)) / (len(q1words) + len(q2words))
             return R
-        word_overlap = self.data.apply(word_match_share, axis=1, raw=True)
-        self.features['word_overlap'] = word_overlap
 
-    def length(self):
-        self.features['len_A'] = self.data['seg_Ax'].apply(lambda x: len(x.split()))
-        self.features['len_B'] = self.data['seg_Bx'].apply(lambda x: len(x.split()))
-        self.features['len_diff'] = self.features['len_A']-self.features['len_B']
-
-    def ngram_simlar(self,n=8):
-        corpus = pd.concat([self.data['seg_Ax'], self.data['seg_Bx']])
-        cntVector = CountVectorizer(stop_words=self.stpwrdlst)
-        cur_gram = cntVector.fit_transform(corpus)
-
-        # cur_gram = self.texts
+        cur_gram = self.texts
         for i in range(1,n+1):
-            cur_gram_q1 = cur_gram[:cur_gram.shape[0] // 2]
-            cur_gram_q2 = cur_gram[cur_gram.shape[0] // 2:]
-            self.data[str(n)+'-sim'] = [distance.cosine(x,y) for x,y in
-                                        zip(scipy.sparse.csr_matrix.todense(cur_gram_q1),
-                                            scipy.sparse.csr_matrix.todense(cur_gram_q2))]
-            phrases = models.Phrases(cur_gram)
-            next_gram_model = Phraser(phrases)
+            cur_gram_q1 = cur_gram[:len(cur_gram) // 2]
+            cur_gram_q2 = cur_gram[len(cur_gram) // 2:]
+            self.features[str(i)+'-share'] = [word_match_share(x,y) for x,y in
+                                        zip(cur_gram_q1,cur_gram_q2)]
+            if not self.tr:
+                next_gram_model = models.Phrases.load('model/'+str(i)+'-share.model')
+            else:
+                phrases = models.Phrases(cur_gram)
+                next_gram_model = Phraser(phrases)
+                if not os.path.exists('model/'+str(i)+'-share.model'):
+                    next_gram_model.save('model/'+str(i)+'-share.model')
             next_gram = next_gram_model[cur_gram]
             cur_gram = next_gram
 
+
+    def tfidf_share(self,n=6):
+        # If a word appears only once, we ignore it completely (likely a typo)
+        # Epsilon defines a smoothing constant, which makes the effect of extremely rare words smaller
+        def get_weight(count, eps=10000, min_count=2):
+            if count < min_count:
+                return 0
+            else:
+                return 1.0 / (count + eps)
+
+        def tfidf_word_match_share(q1words,q2words,weights):
+            shared_weights = [weights.get(w, 0) for w in q1words if w in q2words] + [weights.get(w, 0) for w in
+                                                                                            q2words if
+                                                                                            w in q1words]
+            total_weights = [weights.get(w, 0) for w in q1words] + [weights.get(w, 0) for w in q2words]
+            R = np.sum(shared_weights) / np.sum(total_weights)
+            return R
+        cur_gram = self.df_texts
+        for i in range(1,n+1):
+            words = (" ".join(cur_gram)).lower().split()
+            counts = Counter(words)
+            weights = {word: get_weight(count) for word, count in counts.items()}
+
+            cur_gram_q1 = cur_gram[:len(cur_gram) // 2]
+            cur_gram_q2 = cur_gram[len(cur_gram) // 2:]
+            self.features[str(i)+'-tfidf_share'] = [tfidf_word_match_share(x,y,weights) for x,y in
+                                        zip(cur_gram_q1,cur_gram_q2)]
+            if not self.tr:
+                next_gram_model = models.Phrases.load('model/'+str(i)+'-share.model')
+            else:
+                phrases = models.Phrases(cur_gram)
+                next_gram_model = Phraser(phrases)
+                if not os.path.exists('model/'+str(i)+'-share.model'):
+                    next_gram_model.save('model/'+str(i)+'-share.model')
+            next_gram = next_gram_model[cur_gram]
+            cur_gram = next_gram
+
+    def tfidf_sim(self,n=6):
+        def cosine(a, b):
+            sum = 0
+            for key in a.keys():
+                if key in b.keys():
+                    sum += a[key] * b[key]
+            return 0.5 + 0.5 * sum
+        cur_gram = self.df_texts
+        for i in range(1,n+1):
+            dictionary = corpora.Dictionary(cur_gram)
+            corpus = [dictionary.doc2bow(line) for line in cur_gram]
+            if self.tr:
+                model = TfidfModel(corpus)
+                model.save('model/'+str(i)+'-tfidf.model')
+            else:
+                model = TfidfModel.load('model/'+str(i)+'-tfidf.model')
+            tfidf = model[corpus]
+
+            tfidf_q1 = tfidf[:len(tfidf) // 2]
+            tfidf_q2 = tfidf[len(tfidf) // 2:]
+            tfidf_sim = [cosine(dict(x), dict(y)) for x, y in
+                         zip(tfidf_q1, tfidf_q2)]
+
+            self.features[str(i)+'-tfidf_share'] = tfidf_sim
+            if not self.tr:
+                next_gram_model = models.Phrases.load('model/'+str(i)+'-share.model')
+            else:
+                phrases = models.Phrases(cur_gram)
+                next_gram_model = Phraser(phrases)
+                if not os.path.exists('model/'+str(i)+'-share.model'):
+                    next_gram_model.save('model/'+str(i)+'-share.model')
+            next_gram = next_gram_model[cur_gram]
+            cur_gram = next_gram
