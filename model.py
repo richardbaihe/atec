@@ -33,3 +33,4 @@ class XGB():
         model = joblib.load(self.model_name)
         result = model.predict(test_data)
         return result
+

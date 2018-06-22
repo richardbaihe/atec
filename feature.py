@@ -12,6 +12,13 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from collections import Counter,defaultdict
 import codecs
 import six
+import os
+
+FEATURES = os.path.abspath('./features')
+NAMES = ['ngram_simlar','words_overlap','ED_distance',
+         'tfidf_sim','tfidf_share','LSA_simlar','LDA_simlar']
+
+LABEL = 'label'
 
 class Feature():
     def __init__(self,data):
@@ -54,9 +61,10 @@ class Feature():
         cntVector = CountVectorizer(stop_words=self.stpwrdlst)
         cntTf = cntVector.fit_transform(corpus)
 
-        lda = LatentDirichletAllocation(n_topics=100,
+        lda = LatentDirichletAllocation(n_topics=10,
                                         learning_offset=50.,
-                                        random_state=0)
+                                        random_state=0,
+                                        n_jobs=-1)
 
         docres = lda.fit_transform(cntTf)
 
@@ -193,18 +201,39 @@ class Feature():
 
     def ngram_simlar(self,n=8):
         corpus = pd.concat([self.data['seg_Ax'], self.data['seg_Bx']])
-        cntVector = CountVectorizer(stop_words=self.stpwrdlst)
-        cur_gram = cntVector.fit_transform(corpus)
+        # cntVector = CountVectorizer(stop_words=self.stpwrdlst)
+        # cur_gram = cntVector.fit_transform(corpus)
 
         # cur_gram = self.texts
         for i in range(1,n+1):
+            print('%d-gram' % i)
+            cntVector = CountVectorizer(stop_words=self.stpwrdlst,
+                                        ngram_range=(i,i))
+            cur_gram = cntVector.fit_transform(corpus)
             cur_gram_q1 = cur_gram[:cur_gram.shape[0] // 2]
             cur_gram_q2 = cur_gram[cur_gram.shape[0] // 2:]
             self.data[str(n)+'-sim'] = [distance.cosine(x,y) for x,y in
                                         zip(scipy.sparse.csr_matrix.todense(cur_gram_q1),
                                             scipy.sparse.csr_matrix.todense(cur_gram_q2))]
-            phrases = models.Phrases(cur_gram)
-            next_gram_model = Phraser(phrases)
-            next_gram = next_gram_model[cur_gram]
-            cur_gram = next_gram
+            # phrases = models.Phrases(cur_gram)
+            # next_gram_model = Phraser(phrases)
+            # next_gram = next_gram_model[cur_gram]
+            # cur_gram = next_gram
+
+    def save(self):
+        for name in self.features.columns:
+            self.features.to_csv(os.path.join(FEATURES, '%s.txt' % name),
+                                 columns=[name], index=None, encoding='utf-8',
+                                 header=None)
+
+    def load(self):
+        name = 'label'
+        self.features = pd.read_csv(os.path.join(FEATURES, '%s.txt' % name),
+                               sep='\t', header=None, names=[name], encoding='utf-8', dtype=str)
+        for name in NAMES:
+            fpath = os.path.join(FEATURES, '%s.txt' % name)
+            if os.path.exists(fpath):
+                self.features[name] = \
+                    pd.read_csv(fpath,
+                                sep='\t', header=None, names=[name], encoding='utf-8', dtype=str)
 

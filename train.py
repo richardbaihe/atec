@@ -13,10 +13,28 @@ if __name__ =='__main__':
     data['label'] = pd.read_csv('data/label.txt',header=None)
 
     fea = Feature(data)
-    fea.LDA_simlar()
-    # fea.ED_distance()
-    # fea.tfidf_share()
-    # fea.tfidf_sim()
+    fea.load()
+    print(fea.features)
+    exit()
+
+    # fea.LDA_simlar()
+    # print('LDA done.')
+    fea.ED_distance()
+    print('ED done.')
+    fea.tfidf_share()
+    print('tfidf_share done.')
+
+    fea.save()
+    exit()
+
+    fea.tfidf_sim()
+    print('tfidf_sim done.')
+    fea.LSA_simlar()
+    print('LSA done.')
+    fea.words_overlap()
+    print('words_overlap done.')
+    fea.ngram_simlar(n=1)
+    print('ngram_simlar done.')
 
     valid_index = np.load('data/valid_index.npy')
     train_index = list(set(valid_index)^set(data.index))
@@ -27,6 +45,7 @@ if __name__ =='__main__':
     train_label = train_data.pop('label')
     valid_label = valid_data.pop('label')
     model.train(train_data,valid_data,train_label,valid_label)
+
     result = model.predict(valid_data)
     f1 = f1_score(valid_label.values,result)
 
