@@ -12,7 +12,7 @@ if __name__ =='__main__':
     data['seg_Bx'] = pd.read_csv('data/seg_Bx.txt', header=None, encoding='utf-8', dtype=str)
     data['label'] = pd.read_csv('data/label.txt',header=None)
 
-    fea = Feature(data,tr=True)
+    fea = Feature(data,tr=True,update_model=False)
 
     # fea.LDA_simlar()
     fea.tfidf_sim(6)

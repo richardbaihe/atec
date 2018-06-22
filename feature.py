@@ -14,7 +14,7 @@ from collections import Counter,defaultdict
 import jieba
 
 class Feature():
-    def __init__(self,data,tr=True):
+    def __init__(self,data,tr=True,update_model=True):
         # stopwords
         stpwrdpath = "data/stop_words"
         self.stpwrdlst = []
@@ -34,6 +34,7 @@ class Feature():
         #         self.stpwrdlst.append(word)
         #     dic[word] = index
         self.tr=tr
+        self.update_model=update_model
         if not tr:
             data.columns = ['index', 'A', 'B']
             jieba.load_userdict("data/dict.txt")
@@ -136,7 +137,7 @@ class Feature():
             cur_gram_q2 = cur_gram[len(cur_gram) // 2:]
             self.features[str(i)+'-share'] = [word_match_share(x,y) for x,y in
                                         zip(cur_gram_q1,cur_gram_q2)]
-            if not self.tr:
+            if not self.update_model:
                 next_gram_model = models.Phrases.load('model/'+str(i)+'-share.model')
             else:
                 phrases = models.Phrases(cur_gram)
@@ -173,7 +174,7 @@ class Feature():
             cur_gram_q2 = cur_gram[len(cur_gram) // 2:]
             self.features[str(i)+'-tfidf_share'] = [tfidf_word_match_share(x,y,weights) for x,y in
                                         zip(cur_gram_q1,cur_gram_q2)]
-            if not self.tr:
+            if not self.update_model:
                 next_gram_model = models.Phrases.load('model/'+str(i)+'-share.model')
             else:
                 phrases = models.Phrases(cur_gram)
@@ -207,7 +208,7 @@ class Feature():
                          zip(tfidf_q1, tfidf_q2)]
 
             self.features[str(i)+'-tfidf_share'] = tfidf_sim
-            if not self.tr:
+            if not self.update_model:
                 next_gram_model = models.Phrases.load('model/'+str(i)+'-share.model')
             else:
                 phrases = models.Phrases(cur_gram)
