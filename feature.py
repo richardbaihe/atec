@@ -17,15 +17,20 @@ import crash_on_ipy
 
 FEATURES = os.path.abspath('./features')
 N = 3
-NAMES = ['lda_sim','lsa_sim','ed']+\
-        [str(i)+'-share' for i in range(N)]+\
-        [str(i)+'-tfidf_share' for i in range(N)]+\
-        [str(i)+'-tfidf_sim' for i in range(N)]
+# The order of the feature names matter!
+NAMES = [str(i)+'-tfidf_sim' for i in range(N+1)]+\
+        ['ed']+\
+        [str(i)+'-tfidf_share' for i in range(N+1)]+\
+        [str(i)+'-share' for i in range(N+1)]+\
+        ['lsa_sim','lda_sim']
+
+
+
 
 LABEL = 'label'
 
 class Feature():
-    def __init__(self,data,tr=True):
+    def __init__(self,data,tr=False):
         # stopwords
         stpwrdpath = "data/stop_words"
         self.stpwrdlst = []
@@ -46,11 +51,9 @@ class Feature():
         #     dic[word] = index
         self.tr=tr
         # if not tr:
-        #     print(data.columns)
         #     data.columns = ['index', 'A', 'B']
         #     jieba.load_userdict("data/dict.txt")
         #     data['seg_A'] = data['A'].apply(lambda x: ' '.join(jieba.cut(x.strip(), cut_all=False)))
-        #     print(data['B'])
         #     data['seg_B'] = data['B'].apply(lambda x: ' '.join(jieba.cut(x.strip(), cut_all=False)))
         #
         #     pattern = re.compile(r'\*+')
@@ -70,13 +73,13 @@ class Feature():
         self.texts = [[token for token in text if frequency[token]>1] for text in texts]
         self.data = data
         self.features = pd.DataFrame()
-        # if not self.tr:
-        self.features['label'] = data.label
+        if self.tr:
+            self.features['label'] = data.label
 
     def LDA_simlar(self):
         corpus = pd.concat([self.data['seg_Ax'], self.data['seg_Bx']])
         cntVector = CountVectorizer(stop_words=self.stpwrdlst)
-        cntTf = cntVector.fit_transform(corpus)
+        # cntTf = cntVector.fit_transform(corpus)
 
         lda = LatentDirichletAllocation(n_topics=10,
                                         learning_offset=50.,
@@ -85,8 +88,12 @@ class Feature():
         docres = None
 
         if not self.tr:
+            cntVector = joblib.load('model/LDA_tf.model')
+            cntTf = cntVector.transform(corpus)
             lda = joblib.load('model/LDA.model')
         else:
+            cntTf = cntVector.fit_transform(corpus)
+            joblib.dump(cntVector, 'model/LDA_tf.model')
             lda.fit(cntTf)
             joblib.dump(lda, 'model/LDA.model')
 
@@ -101,16 +108,20 @@ class Feature():
     def LSA_simlar(self):
         corpus = pd.concat([self.data['seg_Ax'], self.data['seg_Bx']])
         cntVector = CountVectorizer(stop_words=self.stpwrdlst)
-        cntTf = cntVector.fit_transform(corpus)
+        # cntTf = cntVector.fit_transform(corpus)
 
         lsa = TruncatedSVD(n_components=400, random_state=0)
         docres = None
 
         if not self.tr:
+            cntVector = joblib.load('model/LSA_tf.model')
+            cntTf = cntVector.transform(corpus)
             lsa = joblib.load('model/LSA.model')
         else:
+            cntTf = cntVector.fit_transform(corpus)
             lsa.fit(cntTf)
             joblib.dump(lsa, 'model/LSA.model')
+            joblib.dump(cntVector, 'model/LSA_tf.model')
 
         docres = lsa.transform(cntTf)
         lsa_q1 = docres[:docres.shape[0] // 2]
