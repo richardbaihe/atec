@@ -12,17 +12,18 @@ class XGB():
         xgb_model = XGBClassifier(
             #        params,
             # eta=0.1,
-            learning_rate=0.1,
-            n_estimators=300,
-            max_depth=7,
-            min_child_weight=2,
-            gamma=1,
+            learning_rate=0.01,
+            n_estimators=800,
+            max_depth=5,
+            min_child_weight=1,
+            gamma=0.4,
             silent=1,
             subsample=0.8,
             colsample_bytree=0.8,
             objective='binary:logistic',
-            #        scale_pos_weight=1
-            seed=19931218
+            scale_pos_weight=5.48,
+            max_delta_step=0.5,
+            seed=27
         )
         # find the suitable amounts of estimators
         xgb_model.fit(train_data, train_label, eval_set=[(val_data, val_label)], eval_metric='auc',
@@ -33,4 +34,3 @@ class XGB():
         model = joblib.load(self.model_name)
         result = model.predict(test_data)
         return result
-

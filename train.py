@@ -12,29 +12,31 @@ if __name__ =='__main__':
     data['seg_Bx'] = pd.read_csv('data/seg_Bx.txt', header=None, encoding='utf-8', dtype=str)
     data['label'] = pd.read_csv('data/label.txt',header=None)
 
-    fea = Feature(data)
-    fea.load()
-    print(fea.features)
-    exit()
+    # fea = Feature(data,tr=True)
+    fea = Feature(data,tr=False)
 
+    # fea.tfidf_sim(3)
+    # print('tfidf_sim done.')
+    # fea.ED_distance()
+    # print('ED_distance done.')
+    # fea.tfidf_share(3)
+    # print('tfidf_share done.')
+    # fea.ngram_share(3)
+    # print('ngram_share done.')
+    # fea.LSA_simlar()
+    # print('LSA_simlar done.')
     # fea.LDA_simlar()
-    # print('LDA done.')
-    fea.ED_distance()
-    print('ED done.')
-    fea.tfidf_share()
-    print('tfidf_share done.')
+    # print('LDA_simlar done.')
+    # fea.save()
 
-    fea.save()
-    exit()
+    fea.load()
 
-    fea.tfidf_sim()
-    print('tfidf_sim done.')
-    fea.LSA_simlar()
-    print('LSA done.')
-    fea.words_overlap()
-    print('words_overlap done.')
-    fea.ngram_simlar(n=1)
-    print('ngram_simlar done.')
+    # for name in fea.features.columns:
+    #    fea.features.to_csv('fea/'+name+'.csv', columns=[name],index=None)
+
+    # for name in ['1-share','2-share','4-share','6-share','ed','tfidf_share',
+    #              '1-tfidf_share','3-tfidf_share']:
+    #     fea.features[name] = pd.read_csv('fea/'+name+'.csv')
 
     valid_index = np.load('data/valid_index.npy')
     train_index = list(set(valid_index)^set(data.index))
@@ -45,8 +47,9 @@ if __name__ =='__main__':
     train_label = train_data.pop('label')
     valid_label = valid_data.pop('label')
     model.train(train_data,valid_data,train_label,valid_label)
-
     result = model.predict(valid_data)
     f1 = f1_score(valid_label.values,result)
-
+    # ans[name] = f1
     print('F1_score of valid data:\t', f1)
+    # for key,value in ans.items():
+    #     print(key+'\t'+str(value))
