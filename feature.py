@@ -36,7 +36,7 @@ class Feature():
         self.tr=tr
         if not tr:
             data.columns = ['index', 'A', 'B']
-            jieba.load_userdict("dict.txt")
+            jieba.load_userdict("data/dict.txt")
             data['seg_A'] = data['A'].apply(lambda x: ' '.join(jieba.cut(x.strip(), cut_all=False)))
             data['seg_B'] = data['B'].apply(lambda x: ' '.join(jieba.cut(x.strip(), cut_all=False)))
 
@@ -57,7 +57,7 @@ class Feature():
         self.texts = [[token for token in text if frequency[token]>1] for text in texts]
         self.data = data
         self.features = pd.DataFrame()
-        if self.tr:
+        if 'label' in data.columns:
             self.features['label'] = data.label
 
     def LDA_simlar(self):
@@ -190,7 +190,7 @@ class Feature():
                 if key in b.keys():
                     sum += a[key] * b[key]
             return 0.5 + 0.5 * sum
-        cur_gram = self.df_texts
+        cur_gram = self.texts
         for i in range(1,n+1):
             dictionary = corpora.Dictionary(cur_gram)
             corpus = [dictionary.doc2bow(line) for line in cur_gram]

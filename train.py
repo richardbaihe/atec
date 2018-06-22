@@ -15,18 +15,18 @@ if __name__ =='__main__':
     fea = Feature(data,tr=True)
 
     # fea.LDA_simlar()
-    fea.tfidf_sim(6llll)
+    fea.tfidf_sim(6)
     fea.ED_distance()
     fea.tfidf_share(6)
-
     fea.ngram_share(6)
 
-    # for name in fea.features.columns:
-    #    fea.features.to_csv('fea/'+name+'.csv', columns=[name],index=None)
+    for name in fea.features.columns:
+       fea.features.to_csv('fea/'+name+'.csv', columns=[name],index=None)
 
-    # for name in ['1-share','2-share','4-share','6-share','ed','tfidf_share',
-    #              '1-tfidf_share','3-tfidf_share']:
-    #     fea.features[name] = pd.read_csv('fea/'+name+'.csv')
+    for name in ['1-share','2-share','4-share','6-share','ed','tfidf_share',
+                 '1-tfidf_share','3-tfidf_share']:
+        fea.features[name] = pd.read_csv('fea/'+name+'.csv')
+
 
     valid_index = np.load('data/valid_index.npy')
     train_index = list(set(valid_index)^set(data.index))

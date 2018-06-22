@@ -17,6 +17,10 @@ if __name__ =='__main__':
     fea.ED_distance()
     fea.tfidf_share()
     fea.tfidf_sim()
+    for name in fea.features.columns:
+        if name not in ['1-share', '2-share', '4-share', '6-share', 'ed', 'tfidf_share',
+                       '1-tfidf_share','3-tfidf_share']:
+            fea.features.pop(name)
     test_data = fea.features
 
     model = XGB(model_name='xgb.model')
