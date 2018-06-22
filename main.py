@@ -47,5 +47,5 @@ if __name__ =='__main__':
     model = XGB(model_name='xgb.model')
     result = model.predict(test_data)
 
-    data['pred'] = result
+    data['pred'] = [int(res) for res in result]
     data.to_csv(out_path,index=None,header=None,sep='\t',columns=['index','pred'])

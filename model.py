@@ -13,7 +13,7 @@ class XGB():
             #        params,
             # eta=0.1,
             learning_rate=0.01,
-            n_estimators=50,
+            n_estimators=867,
             max_depth=5,
             min_child_weight=2,
             gamma=0.2,
@@ -27,7 +27,7 @@ class XGB():
         )
         # find the suitable amounts of estimators
         xgb_model.fit(train_data, train_label, eval_set=[(val_data, val_label)], eval_metric='auc',
-                      early_stopping_rounds=10)
+                      early_stopping_rounds=50)
         joblib.dump(xgb_model, self.model_name, protocol=2)
 
     def predict(self,test_data):
