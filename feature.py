@@ -12,6 +12,7 @@ from sklearn.feature_extraction.text import CountVectorizer
 from gensim.models import TfidfModel
 from collections import Counter,defaultdict
 import jieba
+from sklearn.externals import joblib
 
 class Feature():
     def __init__(self,data,tr=True,update_model=True):
@@ -64,16 +65,25 @@ class Feature():
     def LDA_simlar(self):
         corpus = pd.concat([self.data['seg_Ax'], self.data['seg_Bx']])
         cntVector = CountVectorizer(stop_words=self.stpwrdlst)
-        cntTf = cntVector.fit_transform(corpus)
+        # cntTf = cntVector.fit_transform(corpus)
 
-        lda = LatentDirichletAllocation(n_topics=100,
+        lda = LatentDirichletAllocation(n_topics=10,
                                         learning_offset=50.,
                                         random_state=0)
+        if self.tr and self.update_model:
+            cntTf = cntVector.fit_transform(corpus)
+            joblib.dump(cntVector, 'model/LDA_tf.model')
+            lda.fit(cntTf)
+            joblib.dump(lda, 'model/LDA.model')
+        else:
+            cntVector = joblib.load('model/LDA_tf.model')
+            cntTf = cntVector.transform(corpus)
+            lda = joblib.load('model/LDA.model')
 
-        docres = lda.fit_transform(cntTf)
+        docres = lda.transform(cntTf)
 
-        lda_q1 = docres[:docres.shape[0] / 2]
-        lda_q2 = docres[docres.shape[0] / 2:]
+        lda_q1 = docres[:docres.shape[0] // 2]
+        lda_q2 = docres[docres.shape[0] // 2:]
 
         lda_sim = pd.DataFrame([distance.cosine(x, y) for x, y in zip(lda_q1, lda_q2)])
         self.features['lda_sim'] = lda_sim
@@ -81,14 +91,24 @@ class Feature():
     def LSA_simlar(self):
         corpus = pd.concat([self.data['seg_Ax'], self.data['seg_Bx']])
         cntVector = CountVectorizer(stop_words=self.stpwrdlst)
-        cntTf = cntVector.fit_transform(corpus)
+        # cntTf = cntVector.fit_transform(corpus)
 
-        lsa = TruncatedSVD(n_components=100, random_state=0)
+        lsa = TruncatedSVD(n_components=400, random_state=0)
+        docres = None
 
-        docres = lsa.fit_transform(cntTf)
+        if self.tr and self.update_model:
+            cntTf = cntVector.fit_transform(corpus)
+            lsa.fit(cntTf)
+            joblib.dump(lsa, 'model/LSA.model')
+            joblib.dump(cntVector, 'model/LSA_tf.model')
+        else:
+            cntVector = joblib.load('model/LSA_tf.model')
+            cntTf = cntVector.transform(corpus)
+            lsa = joblib.load('model/LSA.model')
 
-        lsa_q1 = docres[:docres.shape[0] / 2]
-        lsa_q2 = docres[docres.shape[0] / 2:]
+        docres = lsa.transform(cntTf)
+        lsa_q1 = docres[:docres.shape[0] // 2]
+        lsa_q2 = docres[docres.shape[0] // 2:]
 
         lsa_sim = pd.DataFrame([distance.cosine(x, y) for x, y in zip(lsa_q1, lsa_q2)])
         self.features['lsa_sim'] = lsa_sim
@@ -142,8 +162,7 @@ class Feature():
             else:
                 phrases = models.Phrases(cur_gram)
                 next_gram_model = Phraser(phrases)
-                if not os.path.exists('model/'+str(i)+'-share.model'):
-                    next_gram_model.save('model/'+str(i)+'-share.model')
+                next_gram_model.save('model/'+str(i)+'-share.model')
             next_gram = next_gram_model[cur_gram]
             cur_gram = next_gram
 
@@ -179,8 +198,7 @@ class Feature():
             else:
                 phrases = models.Phrases(cur_gram)
                 next_gram_model = Phraser(phrases)
-                if not os.path.exists('model/'+str(i)+'-share.model'):
-                    next_gram_model.save('model/'+str(i)+'-share.model')
+                next_gram_model.save('model/'+str(i)+'-share.model')
             next_gram = next_gram_model[cur_gram]
             cur_gram = next_gram
 
@@ -195,7 +213,7 @@ class Feature():
         for i in range(1,n+1):
             dictionary = corpora.Dictionary(cur_gram)
             corpus = [dictionary.doc2bow(line) for line in cur_gram]
-            if self.tr:
+            if self.tr and self.update_model:
                 model = TfidfModel(corpus)
                 model.save('model/'+str(i)+'-tfidf.model')
             else:
@@ -207,13 +225,12 @@ class Feature():
             tfidf_sim = [cosine(dict(x), dict(y)) for x, y in
                          zip(tfidf_q1, tfidf_q2)]
 
-            self.features[str(i)+'-tfidf_share'] = tfidf_sim
+            self.features[str(i)+'-tfidf_sim'] = tfidf_sim
             if not self.update_model:
                 next_gram_model = models.Phrases.load('model/'+str(i)+'-share.model')
             else:
                 phrases = models.Phrases(cur_gram)
                 next_gram_model = Phraser(phrases)
-                if not os.path.exists('model/'+str(i)+'-share.model'):
-                    next_gram_model.save('model/'+str(i)+'-share.model')
+                next_gram_model.save('model/'+str(i)+'-share.model')
             next_gram = next_gram_model[cur_gram]
             cur_gram = next_gram

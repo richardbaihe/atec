@@ -5,6 +5,14 @@ import numpy as np
 from feature import Feature
 from model import XGB
 from sklearn.metrics import f1_score
+import os
+FEATURES = os.path.abspath('./features')
+N = 3
+# The order of the feature names matter!
+NAMES = ['1-share','2-share','4-share','6-share','ed',
+         '1-tfidf_share','1-tfidf_sim','3-tfidf_sim',
+         '3-tfidf_share','2-tfidf_sim','lda_sim','lsa_sim']
+PREPARE_FEA = False
 
 if __name__ =='__main__':
 
@@ -13,19 +21,19 @@ if __name__ =='__main__':
     data['label'] = pd.read_csv('data/label.txt',header=None)
 
     fea = Feature(data,tr=True,update_model=False)
+    if PREPARE_FEA:
+        # fea.LDA_simlar()
+        # fea.LSA_simlar()
+        # fea.tfidf_sim(3)
+        # fea.ED_distance()
+        # fea.tfidf_share(3)
+        # fea.ngram_share(6)
 
-    # fea.LDA_simlar()
-    fea.tfidf_sim(6)
-    fea.ED_distance()
-    fea.tfidf_share(6)
-    fea.ngram_share(6)
-
-    for name in fea.features.columns:
-       fea.features.to_csv('fea/'+name+'.csv', columns=[name],index=None)
-
-    for name in ['1-share','2-share','4-share','6-share','ed','tfidf_share',
-                 '1-tfidf_share','3-tfidf_share']:
-        fea.features[name] = pd.read_csv('fea/'+name+'.csv')
+        for name in fea.features.columns:
+           fea.features.to_csv('features/'+name+'.csv', columns=[name],index=None)
+    else:
+        for name in NAMES:
+            fea.features[name] = pd.read_csv('features/'+name+'.csv')
 
 
     valid_index = np.load('data/valid_index.npy')

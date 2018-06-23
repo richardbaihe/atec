@@ -13,16 +13,17 @@ class XGB():
             #        params,
             # eta=0.1,
             learning_rate=0.1,
-            n_estimators=300,
-            max_depth=7,
+            n_estimators=867,
+            max_depth=5,
             min_child_weight=2,
-            gamma=1,
+            gamma=0.2,
             silent=1,
-            subsample=0.8,
-            colsample_bytree=1,
+            subsample=0.9,
+            colsample_bytree=0.7,
             objective='binary:logistic',
-            scale_pos_weight=6,
-            seed=19931218
+            scale_pos_weight=3.99,
+            max_delta_step=0.65,
+            seed=27
         )
         # find the suitable amounts of estimators
         xgb_model.fit(train_data, train_label, eval_set=[(val_data, val_label)], eval_metric='auc',
