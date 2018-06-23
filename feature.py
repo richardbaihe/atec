@@ -15,7 +15,7 @@ import jieba
 from sklearn.externals import joblib
 
 class Feature():
-    def __init__(self,data,tr=True,update_model=True):
+    def __init__(self,data,tr=False,update_model=False):
         # stopwords
         stpwrdpath = "data/stop_words"
         self.stpwrdlst = []
@@ -59,7 +59,7 @@ class Feature():
         self.texts = [[token for token in text if frequency[token]>1] for text in texts]
         self.data = data
         self.features = pd.DataFrame()
-        if 'label' in data.columns:
+        if self.tr:
             self.features['label'] = data.label
 
     def LDA_simlar(self):

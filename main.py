@@ -3,6 +3,9 @@ import argparse
 from feature import Feature
 from model import XGB
 
+NAMES = ['1-share','2-share','4-share','6-share','ed',
+         '1-tfidf_share','1-tfidf_sim','3-tfidf_sim',
+         '3-tfidf_share','2-tfidf_sim','lda_sim','lsa_sim']
 
 if __name__ =='__main__':
     parser = argparse.ArgumentParser()
@@ -14,14 +17,14 @@ if __name__ =='__main__':
 
     test = pd.read_csv(in_path,sep='\t',header=None)
     fea = Feature(test)
+    fea.tfidf_sim(3)
     fea.ED_distance()
-    fea.tfidf_share()
-    fea.tfidf_sim()
-    for name in fea.features.columns:
-        if name not in ['1-share', '2-share', '4-share', '6-share', 'ed', 'tfidf_share',
-                       '1-tfidf_share','3-tfidf_share']:
-            fea.features.pop(name)
-    test_data = fea.features
+    fea.tfidf_share(3)
+    fea.ngram_share(6)
+    fea.LDA_simlar()
+    fea.LSA_simlar()
+
+    test_data = fea.features[NAMES]
 
     model = XGB(model_name='xgb.model')
     result = model.predict(test_data)
