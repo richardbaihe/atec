@@ -131,34 +131,53 @@ class Feature():
         self.features['lsa_sim'] = lsa_sim
 
     def ED_distance(self):
-        def edit_distance(row):
-            q1words = {}
-            q2words = {}
-            for word in ''.join(row['seg_Ax'].lower().split()):
-                if word not in self.stpwrdlst:
-                    q1words[word] = 1
-            for word in ''.join(row['seg_Bx'].lower().split()):
-                if word not in self.stpwrdlst:
-                    q2words[word] = 1
-            if len(q1words) == 0 or len(q2words) == 0:
-                # The computer-generated chaff includes a few questions that are nothing but stopwords
-                return max(len(q1words), len(q2words))
-            a_sp = list(q1words.keys())
-            b_sp = list(q2words.keys())
-            dp = [[0 for _ in range(len(a_sp) + 1)] for __ in range(len(b_sp) + 1)]
-            dp[0] = [i for i in range(len(a_sp) + 1)]
-            for i in range(len(b_sp) + 1):
-                dp[i][0] = i
-            for i in range(len(b_sp)):
-                for j in range(len(a_sp)):
-                    if a_sp[j] == b_sp[i]:
-                        temp = 0
-                    else:
-                        temp = 1
-                    dp[i + 1][j + 1] = min(dp[i][j] + temp, dp[i][j + 1] + 1, dp[i + 1][j] + 1)
-            return dp[-1][-1]
+        # def edit_distance(row):
+        #     q1words = {}
+        #     q2words = {}
+        #     for word in ''.join(row['seg_Ax'].lower().split()):
+        #         if word not in self.stpwrdlst:
+        #             q1words[word] = 1
+        #     for word in ''.join(row['seg_Bx'].lower().split()):
+        #         if word not in self.stpwrdlst:
+        #             q2words[word] = 1
+        #     if len(q1words) == 0 or len(q2words) == 0:
+        #         # The computer-generated chaff includes a few questions that are nothing but stopwords
+        #         return max(len(q1words), len(q2words))
+        #     a_sp = list(q1words.keys())
+        #     b_sp = list(q2words.keys())
+        #     dp = [[0 for _ in range(len(a_sp) + 1)] for __ in range(len(b_sp) + 1)]
+        #     dp[0] = [i for i in range(len(a_sp) + 1)]
+        #     for i in range(len(b_sp) + 1):
+        #         dp[i][0] = i
+        #     for i in range(len(b_sp)):
+        #         for j in range(len(a_sp)):
+        #             if a_sp[j] == b_sp[i]:
+        #                 temp = 0
+        #             else:
+        #                 temp = 1
+        #             dp[i + 1][j + 1] = min(dp[i][j] + temp, dp[i][j + 1] + 1, dp[i + 1][j] + 1)
+        #     return dp[-1][-1]
 
-        train_edit_distance = self.data.apply(edit_distance, axis=1, raw=True)
+        def edit_distance2(row):
+
+            def ed(s1, s2):
+                m = len(s1) + 1
+                n = len(s2) + 1
+                i = None
+                j = None
+                tbl = {}
+                for i in range(m): tbl[i, 0] = i
+                for j in range(n): tbl[0, j] = j
+                for i in range(1, m):
+                    for j in range(1, n):
+                        cost = 0 if s1[i - 1] == s2[j - 1] else 1
+                        tbl[i, j] = min(tbl[i, j - 1] + 1, tbl[i - 1, j] + 1, tbl[i - 1, j - 1] + cost)
+
+                return tbl[i, j]
+
+            return ed(row['seg_Ax'].split(), row['seg_Bx'].split())
+
+        train_edit_distance = self.data.apply(edit_distance2, axis=1, raw=True)
         self.features['ed'] = train_edit_distance
 
     def ngram_share(self,n=6):
