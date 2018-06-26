@@ -1,0 +1,1 @@
+java -jar stanford_parser.jar ../data/seg_Ax.txt ../data/seg_Bx.txt ../data/out_A.txt ../data/out_B.txt
