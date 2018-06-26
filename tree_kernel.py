@@ -106,6 +106,17 @@ class TreeKernel(object):
 
         return np.sqrt(res)
 
+    def _same_production(self, x, y):
+
+        if x.label != y.label or len(x.children) != len(y.children):
+            return False
+
+        for ch1, ch2 in zip(x.children, y.children):
+            if ch1.label != ch2.label:
+                return False
+
+        return True
+
     def _compute(self, i, j, nodes1, nodes2):
 
         if self.mem[i, j] >= 0:
@@ -114,7 +125,8 @@ class TreeKernel(object):
         node_i = nodes1[i]
         node_j = nodes2[j]
 
-        if node_i.label == node_j.label:
+        if node_i.label == node_j.label and \
+                self._same_production(node_i, node_j):
             self.mem[i, j] = self.lam
 
             if (not node_i.isLeaf) and (not node_j.isLeaf):
@@ -127,11 +139,6 @@ class TreeKernel(object):
                         self.index2[children2[k]],
                         nodes1, nodes2
                     )
-                    # self.mem[i, j] += self._compute(
-                    #     self.index_of(nodes1, children1[k]),
-                    #     self.index_of(nodes2, children2[k]),
-                    #     nodes1, nodes2
-                    # )
 
             elif node_i.isLeaf and node_j.isLeaf:
                 self.mem[i, j] = 1
@@ -150,6 +157,36 @@ class TreeKernel(object):
 
     def cos(self, x, y):
         return self.eval(x, y)/(self._norm(x) * self._norm(y))
+
+    def vec(self, x, y):
+
+        self.eval(x, x)
+        mem_x = np.sqrt(np.array(self.mem))
+        self.eval(y, y)
+        mem_y = np.sqrt(np.array(self.mem))
+
+        res = defaultdict(float)
+
+        nodes1 = x.get_nodes()
+        nodes2 = y.get_nodes()
+        self._init_index(nodes1, nodes2)
+
+        self.N1 = min(self.nnodes, len(nodes1))
+        self.N2 = min(self.nnodes, len(nodes2))
+        self._init_mem(self.N1, self.N2)
+
+        for i in range(self.N1):
+            for j in range(self.N2):
+                val = self._compute(i, j, nodes1, nodes2)
+                if val > 0:
+                    val_normed = (val+.0)/(mem_x[i, i] * mem_y[j, j])
+
+                    if not nodes1[i].isLeaf:
+                        res[nodes1[i].label] += val_normed
+                    else:
+                        res['LEAF'] += val_normed
+
+        return res
 
     def eval(self, x, y):
 
@@ -261,6 +298,12 @@ class TreeKernel2(object):
         # return self.eval(x, y)/(self._norm(x) * self._norm(y))
 
     def vec(self, x, y):
+
+        self.eval(x, x)
+        mem_x = np.sqrt(np.array(self.mem))
+        self.eval(y, y)
+        mem_y = np.sqrt(np.array(self.mem))
+
         res = defaultdict(float)
 
         nodes1 = x.get_nodes()
@@ -275,10 +318,12 @@ class TreeKernel2(object):
             for j in range(self.N2):
                 val = self._compute(i, j, nodes1, nodes2)
                 if val > 0:
+                    val_normed = (val+.0)/(mem_x[i, i] * mem_y[j, j])
+
                     if not nodes1[i].isLeaf:
-                        res[nodes1[i].label] += val
+                        res[nodes1[i].label] += val_normed
                     else:
-                        res['LEAF'] += val
+                        res['LEAF'] += val_normed
 
         return res
 
@@ -292,7 +337,6 @@ class TreeKernel2(object):
         self.N1 = min(self.nnodes, len(nodes1))
         self.N2 = min(self.nnodes, len(nodes2))
         self._init_mem(self.N1, self.N2)
-
 
         res = 0.0
 
@@ -508,6 +552,11 @@ class TreeKernel4(object):
 
         return res
 
+def progress_bar(percent, txt):
+    """Prints the progress until the next report."""
+    fill = int(percent * 40)
+    print("\r[{}{}]: {:.4f} {:s}".format(
+        "=" * fill, " " * (40 - fill), percent, txt), end='')
 
 def load_parses(fpath_A, fpath_B):
     parses_A = []
@@ -547,8 +596,11 @@ def cal_vecs(fpath_A, fpath_B, lam = 0.5):
 
         vec = tk.vec(tree_A, tree_B)
         vec_lst.append(vec)
+        # print(vec)
 
-        print(i, (i + .0) / len(parses_A))
+        percent = (i +.0)/len(parses_A)
+        progress_bar(percent, '')
+        # print(i, (i + .0) / len(parses_A))
 
     df = pd.DataFrame(vec_lst)
     df = df.fillna(0)

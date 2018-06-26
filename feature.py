@@ -26,12 +26,17 @@ SYN  =  ['AD', 'ADJP', 'ADVP', 'AS', 'BA', 'CC', 'CD', 'CLP', 'CP',
          'PU', 'QP', 'ROOT', 'SB', 'SP', 'UCP', 'VA', 'VC', 'VCD',
          'VCP', 'VE', 'VP', 'VRD', 'VSB', 'VV']
 
-NAMES = [str(i)+'-tfidf_sim' for i in range(N+1)]+\
-        ['ed']+\
-        [str(i)+'-tfidf_share' for i in range(N+1)]+\
-        [str(i)+'-share' for i in range(N+1)]+\
-        ['lsa_sim','lda_sim']+ \
-        SYN
+# NAMES = [str(i)+'-tfidf_sim' for i in range(N+1)]+\
+#         ['ed']+\
+#         [str(i)+'-tfidf_share' for i in range(N+1)]+\
+#         [str(i)+'-share' for i in range(N+1)]+\
+#         ['lsa_sim','lda_sim']+ \
+#         SYN
+
+NAMES = ['1-share','2-share','4-share','6-share','ed',
+         '1-tfidf_share','1-tfidf_sim','3-tfidf_sim',
+         '3-tfidf_share','2-tfidf_sim','lda_sim','lsa_sim'] \
+        + SYN
 
 
 LABEL = 'label'
@@ -135,6 +140,7 @@ class Feature():
         lsa_q2 = docres[docres.shape[0] // 2:]
 
         lsa_sim = pd.DataFrame([distance.cosine(x, y) for x, y in zip(lsa_q1, lsa_q2)])
+        # lsa_sim = pd.DataFrame([np.abs(x - y) for x, y in zip(lsa_q1, lsa_q2)])
         self.features['lsa_sim'] = lsa_sim
 
     def ED_distance(self):
@@ -187,7 +193,7 @@ class Feature():
         train_edit_distance = self.data.apply(edit_distance2, axis=1, raw=True)
         self.features['ed'] = train_edit_distance
 
-    def ngram_share(self,n=6):
+    def ngram_share(self, n_lst = []):
         def word_match_share(q1words,q2words):
             shared_words_in_q1 = [w for w in q1words if w in q2words]
             shared_words_in_q2 = [w for w in q2words if w in q1words]
@@ -195,10 +201,11 @@ class Feature():
             return R
 
         cur_gram = self.texts
-        for i in range(1,n+1):
+        for i in range(1, max(n_lst)+1):
             cur_gram_q1 = cur_gram[:len(cur_gram) // 2]
             cur_gram_q2 = cur_gram[len(cur_gram) // 2:]
-            self.features[str(i)+'-share'] = [word_match_share(x,y) for x,y in
+            if i in n_lst:
+                self.features[str(i)+'-share'] = [word_match_share(x,y) for x,y in
                                         zip(cur_gram_q1,cur_gram_q2)]
             if not self.tr:
                 next_gram_model = models.Phrases.load('model/'+str(i)+'-share.model')
@@ -210,7 +217,7 @@ class Feature():
             next_gram = next_gram_model[cur_gram]
             cur_gram = next_gram
 
-    def tfidf_share(self,n=6):
+    def tfidf_share(self, n_lst = []):
         # If a word appears only once, we ignore it completely (likely a typo)
         # Epsilon defines a smoothing constant, which makes the effect of extremely rare words smaller
         def get_weight(count, eps=10000, min_count=2):
@@ -227,26 +234,27 @@ class Feature():
             R = np.sum(shared_weights) / np.sum(total_weights)
             return R
         cur_gram = self.df_texts
-        for i in range(1,n+1):
+        for i in range(1, max(n_lst)+1):
             words = (" ".join(cur_gram)).lower().split()
             counts = Counter(words)
             weights = {word: get_weight(count) for word, count in counts.items()}
 
             cur_gram_q1 = cur_gram[:len(cur_gram) // 2]
             cur_gram_q2 = cur_gram[len(cur_gram) // 2:]
-            self.features[str(i)+'-tfidf_share'] = [tfidf_word_match_share(x,y,weights) for x,y in
+            if i in n_lst:
+                self.features[str(i)+'-tfidf_share'] = [tfidf_word_match_share(x,y,weights) for x,y in
                                         zip(cur_gram_q1,cur_gram_q2)]
             if not self.tr:
-                next_gram_model = models.Phrases.load('model/'+str(i)+'-share.model')
+                next_gram_model = models.Phrases.load('model/'+str(i)+'-tfidf-share.model')
             else:
                 phrases = models.Phrases(cur_gram)
                 next_gram_model = Phraser(phrases)
-                if not os.path.exists('model/'+str(i)+'-share.model'):
-                    next_gram_model.save('model/'+str(i)+'-share.model')
+                if not os.path.exists('model/'+str(i)+'-tfidf-share.model'):
+                    next_gram_model.save('model/'+str(i)+'-tfidf-share.model')
             next_gram = next_gram_model[cur_gram]
             cur_gram = next_gram
 
-    def tfidf_sim(self,n=6):
+    def tfidf_sim(self,n_lst = []):
         def cosine(a, b):
             sum = 0
             for key in a.keys():
@@ -254,7 +262,7 @@ class Feature():
                     sum += a[key] * b[key]
             return 0.5 + 0.5 * sum
         cur_gram = self.df_texts
-        for i in range(1,n+1):
+        for i in range(1, max(n_lst)+1):
             dictionary = corpora.Dictionary([line.split(' ') for line in  cur_gram])
             corpus = [dictionary.doc2bow(line.split(' ')) for line in cur_gram]
             if not self.tr:
@@ -269,8 +277,8 @@ class Feature():
             tfidf_q2 = tfidf[len(tfidf) // 2:]
             tfidf_sim = [cosine(dict(x), dict(y)) for x, y in
                          zip(tfidf_q1, tfidf_q2)]
-
-            self.features[str(i)+'-tfidf_sim'] = tfidf_sim
+            if i in n_lst:
+                self.features[str(i)+'-tfidf_sim'] = tfidf_sim
             if not self.tr:
                 next_gram_model = models.Phrases.load('model/'+str(i)+'-share.model')
             else:
@@ -294,8 +302,10 @@ class Feature():
 
     def save(self):
         for name in self.features.columns:
-            if os.path.exists(os.path.join(FEATURES, '%s.txt' % name)):
-                self.features.to_csv(os.path.join(FEATURES, '%s.txt' % name),
+            if name == 'label':
+                continue
+
+            self.features.to_csv(os.path.join(FEATURES, '%s.txt' % name),
                                  columns=[name], index=None, encoding='utf-8',
                                  header=None)
 
@@ -305,8 +315,8 @@ class Feature():
                                sep='\t', header=None, names=[name], encoding='utf-8', dtype=float)
         for name in NAMES:
             fpath = os.path.join(FEATURES, '%s.txt' % name)
-            if os.path.exists(fpath):
-                self.features[name] = \
+            # if os.path.exists(fpath):
+            self.features[name] = \
                     pd.read_csv(fpath,
                                 sep='\t', header=None, names=[name], encoding='utf-8', dtype=float)
 

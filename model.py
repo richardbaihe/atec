@@ -2,6 +2,12 @@
 from __future__ import division
 from sklearn.externals import joblib
 from xgboost.sklearn import XGBClassifier
+from sklearn.metrics import f1_score
+
+def xg_f1(y,t):
+    t = t.get_label()
+    y_bin = [1. if y_cont > 0.5 else 0. for y_cont in y] # binaryzing your output
+    return 'f1',f1_score(t,y_bin)
 
 class XGB():
     def __init__(self,model_name):
@@ -12,8 +18,8 @@ class XGB():
         xgb_model = XGBClassifier(
             #        params,
             # eta=0.1,
-            learning_rate=0.01,
-            n_estimators=867,
+            learning_rate=0.001,
+            n_estimators=10000,
             max_depth=5,
             min_child_weight=2,
             gamma=0.2,
@@ -26,7 +32,7 @@ class XGB():
             seed=27
         )
         # find the suitable amounts of estimators
-        xgb_model.fit(train_data, train_label, eval_set=[(val_data, val_label)], eval_metric='auc',
+        xgb_model.fit(train_data, train_label, eval_set=[(val_data, val_label)], eval_metric=xg_f1,
                       early_stopping_rounds=50)
         joblib.dump(xgb_model, self.model_name, protocol=2)
 

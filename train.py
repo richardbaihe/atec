@@ -12,22 +12,23 @@ if __name__ =='__main__':
     data['seg_Bx'] = pd.read_csv('data/seg_Bx.txt', header=None, encoding='utf-8', dtype=str)
     data['label'] = pd.read_csv('data/label.txt',header=None)
 
-    # fea = Feature(data,tr=True)
-    fea = Feature(data,tr=False)
-
-    # fea.tfidf_sim(3)
+    fea = Feature(data,tr=True)
+    # fea = Feature(data,tr=False)
+    #
+    # fea.tfidf_sim([1,2,3])
     # print('tfidf_sim done.')
     # fea.ED_distance()
     # print('ED_distance done.')
-    # fea.tfidf_share(3)
+    # fea.tfidf_share([1,3])
     # print('tfidf_share done.')
-    # fea.ngram_share(3)
+    # fea.ngram_share([1,2,4,6])
     # print('ngram_share done.')
     # fea.LSA_simlar()
     # print('LSA_simlar done.')
     # fea.LDA_simlar()
     # print('LDA_simlar done.')
     # fea.save()
+    # exit()
 
     fea.load()
 

@@ -5,6 +5,7 @@ import re
 from feature import Feature
 from model import XGB
 import os
+from feature import NAMES
 
 DATA = os.path.abspath('./data')
 
@@ -41,21 +42,22 @@ if __name__ =='__main__':
 
     fea = Feature(data)
 
-    fea.tfidf_sim(3)
+    fea.ngram_share([1, 2, 4, 6])
+    print('ngram_share done.')
+    fea.tfidf_sim([1, 2, 3])
     print('tfidf_sim done.')
     fea.ED_distance()
     print('ED_distance done.')
-    fea.tfidf_share(3)
+    fea.tfidf_share([1,3])
     print('tfidf_share done.')
-    fea.ngram_share(3)
-    print('ngram_share done.')
     fea.LSA_simlar()
     print('LSA_simlar done.')
     fea.LDA_simlar()
     print('LDA_simlar done.')
     fea.syntactic('data/out_A.txt', 'data/out_B.txt')
+    print('\n')
 
-    test_data = fea.features
+    test_data = fea.features[NAMES]
 
     model = XGB(model_name='xgb.model')
     result = model.predict(test_data)
