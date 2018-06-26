@@ -4,7 +4,9 @@ import jieba
 import re
 from feature import Feature
 from model import XGB
+import os
 
+DATA = os.path.abspath('./data')
 
 if __name__ =='__main__':
     parser = argparse.ArgumentParser()
@@ -27,6 +29,16 @@ if __name__ =='__main__':
     data['seg_Ax'] = data['Ax'].apply(lambda x: ' '.join(jieba.cut(x.strip(), cut_all=False)))
     data['seg_Bx'] = data['Bx'].apply(lambda x: ' '.join(jieba.cut(x.strip(), cut_all=False)))
 
+    for name in ['seg_Ax', 'seg_Bx']:
+        data.to_csv(os.path.join(DATA, '%s_valid.txt' % name),
+                         columns=[name], index=None, encoding='utf-8',
+                         header=None)
+
+    print('parsing...')
+    os.system('java -jar jars/stanford_parser.jar data/%s data/%s data/%s data/%s'
+              % ('seg_Ax_valid.txt', 'seg_Bx_valid.txt', 'out_A.txt', 'out_B.txt'))
+    print('parsing done.')
+
     fea = Feature(data)
 
     fea.tfidf_sim(3)
@@ -41,6 +53,7 @@ if __name__ =='__main__':
     print('LSA_simlar done.')
     fea.LDA_simlar()
     print('LDA_simlar done.')
+    fea.syntactic('data/out_A.txt', 'data/out_B.txt')
 
     test_data = fea.features
 

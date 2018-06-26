@@ -14,16 +14,25 @@ from collections import Counter,defaultdict
 import jieba
 from sklearn.externals import joblib
 import crash_on_ipy
+import tree_kernel
 
 FEATURES = os.path.abspath('./features')
 N = 3
 # The order of the feature names matter!
+SYN  =  ['AD', 'ADJP', 'ADVP', 'AS', 'BA', 'CC', 'CD', 'CLP', 'CP',
+         'CS', 'DEC', 'DEG', 'DEV', 'DNP', 'DP', 'DT', 'DVP', 'ETC',
+         'FRAG', 'IP', 'JJ', 'LB', 'LC', 'LCP', 'LEAF', 'LST', 'M',
+         'MSP', 'NN', 'NP', 'NR', 'NT', 'OD', 'P', 'PN', 'PP', 'PRN',
+         'PU', 'QP', 'ROOT', 'SB', 'SP', 'UCP', 'VA', 'VC', 'VCD',
+         'VCP', 'VE', 'VP', 'VRD', 'VSB', 'VV']
+
 NAMES = [str(i)+'-tfidf_sim' for i in range(N+1)]+\
         ['ed']+\
         [str(i)+'-tfidf_share' for i in range(N+1)]+\
         [str(i)+'-share' for i in range(N+1)]+\
-        ['lsa_sim','lda_sim']+\
-        ['angle']
+        ['lsa_sim','lda_sim']+ \
+        SYN
+
 
 LABEL = 'label'
 
@@ -272,9 +281,21 @@ class Feature():
             next_gram = next_gram_model[cur_gram]
             cur_gram = next_gram
 
+    def syntactic(self, parses_Ax, parses_Bx):
+        vecs = tree_kernel.cal_vecs(parses_Ax, parses_Bx)
+        # for name in vecs.columns:
+        #     self.features[name] = vecs[name]
+        n = len(parses_Ax)
+        for name in SYN:
+            if name in vecs.columns:
+                self.features[name] = vecs[name]
+            else:
+                self.features[name] = np.zeros(len(vecs))
+
     def save(self):
         for name in self.features.columns:
-            self.features.to_csv(os.path.join(FEATURES, '%s.txt' % name),
+            if os.path.exists(os.path.join(FEATURES, '%s.txt' % name)):
+                self.features.to_csv(os.path.join(FEATURES, '%s.txt' % name),
                                  columns=[name], index=None, encoding='utf-8',
                                  header=None)
 
@@ -288,3 +309,8 @@ class Feature():
                 self.features[name] = \
                     pd.read_csv(fpath,
                                 sep='\t', header=None, names=[name], encoding='utf-8', dtype=float)
+
+            # else:
+            #     self.features[name] = []
+
+        # self.features = self.features.fillna(0)

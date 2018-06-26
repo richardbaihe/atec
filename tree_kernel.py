@@ -4,6 +4,10 @@ import numpy as np
 DATA = os.path.abspath('./data')
 import crash_on_ipy
 from multiprocessing import Pool
+from collections import defaultdict
+import pandas as pd
+
+FEATURES = os.path.abspath('./features')
 
 def parse(raw, root):
     def _consume(raw, i):
@@ -66,7 +70,6 @@ class Tree(object):
         add_nodes(self, res)
 
         return res
-
 
 class TreeKernel(object):
 
@@ -257,21 +260,44 @@ class TreeKernel2(object):
         return xy/(x_norm * y_norm)
         # return self.eval(x, y)/(self._norm(x) * self._norm(y))
 
+    def vec(self, x, y):
+        res = defaultdict(float)
+
+        nodes1 = x.get_nodes()
+        nodes2 = y.get_nodes()
+        self._init_index(nodes1, nodes2)
+
+        self.N1 = min(self.nnodes, len(nodes1))
+        self.N2 = min(self.nnodes, len(nodes2))
+        self._init_mem(self.N1, self.N2)
+
+        for i in range(self.N1):
+            for j in range(self.N2):
+                val = self._compute(i, j, nodes1, nodes2)
+                if val > 0:
+                    if not nodes1[i].isLeaf:
+                        res[nodes1[i].label] += val
+                    else:
+                        res['LEAF'] += val
+
+        return res
+
+
     def eval(self, x, y):
 
         nodes1 = x.get_nodes()
         nodes2 = y.get_nodes()
         self._init_index(nodes1, nodes2)
 
-        N1 = min(self.nnodes, len(nodes1))
-        N2 = min(self.nnodes, len(nodes2))
-        self._init_mem(N1, N2)
+        self.N1 = min(self.nnodes, len(nodes1))
+        self.N2 = min(self.nnodes, len(nodes2))
+        self._init_mem(self.N1, self.N2)
 
 
         res = 0.0
 
-        for i in range(N1):
-            for j in range(N2):
+        for i in range(self.N1):
+            for j in range(self.N2):
                 res += self._compute(i, j, nodes1, nodes2)
 
         return res
@@ -503,15 +529,15 @@ def load_parses(fpath_A, fpath_B):
     #     tk.cos(tree_A, tree_B)
     #     print((i+.0)/len(raw_parses_A))
 
+def cal_vecs(fpath_A, fpath_B, lam = 0.5):
+    # DATA = os.path.abspath('./data')
+    # parse_Ax = os.path.join(DATA, 'parse_Ax.txt')
+    # parse_Bx = os.path.join(DATA, 'parse_Bx.txt')
+    parses_A, parses_B = load_parses(fpath_A, fpath_B)
 
-if __name__ == '__main__':
-    DATA = os.path.abspath('./data')
-    parse_Ax = os.path.join(DATA, 'parse_Ax.txt')
-    parse_Bx = os.path.join(DATA, 'parse_Bx.txt')
-    parses_A, parses_B = load_parses(parse_Ax, parse_Bx)
-
-    tk = TreeKernel2(1, 300)
+    tk = TreeKernel2(lam, 300)
     cos_lst = []
+    vec_lst = []
     pool = Pool()
     for i, (parse_A, parse_B) in enumerate(zip(parses_A, parses_B)):
         tree_A = Tree(lam=1)
@@ -519,12 +545,28 @@ if __name__ == '__main__':
         parse(parse_A, tree_A)
         parse(parse_B, tree_B)
 
-        val = pool.apply_async(tk.cos, [tree_A, tree_B])
-        cos_lst.append(val)
+        vec = tk.vec(tree_A, tree_B)
+        vec_lst.append(vec)
 
-        # cos_val = tk.cos(tree_A, tree_B)
-        # cos_lst.append(cos_val)
         print(i, (i + .0) / len(parses_A))
 
-    for cos in cos_lst:
-        print(cos.get())
+    df = pd.DataFrame(vec_lst)
+    df = df.fillna(0)
+
+    return df
+
+def save(features):
+    for name in features.columns:
+        features.to_csv(os.path.join(FEATURES, '%s.txt' % name),
+                             columns=[name], index=None, encoding='utf-8',
+                             header=None)
+    print(features.columns)
+
+if __name__ == '__main__':
+    DATA = os.path.abspath('./data')
+    parse_Ax = os.path.join(DATA, 'parse_Ax.txt')
+    parse_Bx = os.path.join(DATA, 'parse_Bx.txt')
+    vecs = cal_vecs(parse_Ax, parse_Bx)
+    save(vecs)
+
+
