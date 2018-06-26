@@ -22,10 +22,8 @@ NAMES = [str(i)+'-tfidf_sim' for i in range(N+1)]+\
         ['ed']+\
         [str(i)+'-tfidf_share' for i in range(N+1)]+\
         [str(i)+'-share' for i in range(N+1)]+\
-        ['lsa_sim','lda_sim']
-
-
-
+        ['lsa_sim','lda_sim']+\
+        ['angle']
 
 LABEL = 'label'
 
