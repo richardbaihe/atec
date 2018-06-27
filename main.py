@@ -5,7 +5,7 @@ import re
 from feature import Feature
 from model import XGB
 import os
-from feature import NAMES
+from feature import LEX, NAMES
 
 DATA = os.path.abspath('./data')
 
@@ -57,6 +57,7 @@ if __name__ =='__main__':
     fea.syntactic('data/out_A.txt', 'data/out_B.txt')
     print('\n')
 
+    # test_data = fea.features[LEX]
     test_data = fea.features[NAMES]
 
     model = XGB(model_name='xgb.model')

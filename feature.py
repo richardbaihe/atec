@@ -17,6 +17,7 @@ import crash_on_ipy
 import tree_kernel
 
 FEATURES = os.path.abspath('./features')
+DATA = os.path.abspath('./data')
 N = 3
 # The order of the feature names matter!
 SYN  =  ['AD', 'ADJP', 'ADVP', 'AS', 'BA', 'CC', 'CD', 'CLP', 'CP',
@@ -32,10 +33,11 @@ SYN  =  ['AD', 'ADJP', 'ADVP', 'AS', 'BA', 'CC', 'CD', 'CLP', 'CP',
 #         [str(i)+'-share' for i in range(N+1)]+\
 #         ['lsa_sim','lda_sim']+ \
 #         SYN
-
-NAMES = ['1-share','2-share','4-share','6-share','ed',
+LEX = ['1-share','2-share','4-share','6-share','ed',
          '1-tfidf_share','1-tfidf_sim','3-tfidf_sim',
-         '3-tfidf_share','2-tfidf_sim','lda_sim','lsa_sim'] \
+         '3-tfidf_share','2-tfidf_sim','lda_sim','lsa_sim']
+
+NAMES = LEX \
         + SYN
 
 
@@ -310,10 +312,10 @@ class Feature():
                                  header=None)
 
     def load(self):
-        name = 'label'
-        self.features = pd.read_csv(os.path.join(FEATURES, '%s.txt' % name),
-                               sep='\t', header=None, names=[name], encoding='utf-8', dtype=float)
+        self.features = pd.read_csv(os.path.join(DATA, 'label_xr.txt'),
+                               sep='\t', header=None, names=['label'], encoding='utf-8', dtype=float)
         for name in NAMES:
+        # for name in LEX:
             fpath = os.path.join(FEATURES, '%s.txt' % name)
             # if os.path.exists(fpath):
             self.features[name] = \

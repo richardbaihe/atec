@@ -27,8 +27,8 @@ class XGB():
             subsample=0.9,
             colsample_bytree=0.7,
             objective='binary:logistic',
-            scale_pos_weight=3.99,
-            max_delta_step=0.65,
+            # scale_pos_weight=3.99,
+            # max_delta_step=0.65,
             seed=27
         )
         # find the suitable amounts of estimators

@@ -5,15 +5,19 @@ import numpy as np
 from feature import Feature
 from model import XGB
 from sklearn.metrics import f1_score
+import os
 
 if __name__ =='__main__':
 
-    data = pd.read_csv('data/seg_Ax.txt', sep='\t', header=None, names=['seg_Ax'], encoding='utf-8', dtype=str)
-    data['seg_Bx'] = pd.read_csv('data/seg_Bx.txt', header=None, encoding='utf-8', dtype=str)
-    data['label'] = pd.read_csv('data/label.txt',header=None)
+    # data = pd.read_csv('data/seg_Ax.txt', sep='\t', header=None, names=['seg_Ax'], encoding='utf-8', dtype=str)
+    # data['seg_Bx'] = pd.read_csv('data/seg_Bx.txt', header=None, encoding='utf-8', dtype=str)
+    # data['label'] = pd.read_csv('data/label.txt',header=None)
+    data = pd.read_csv('data/seg_Axr.txt', sep='\t', header=None, names=['seg_Ax'], encoding='utf-8', dtype=str)
+    data['seg_Bx'] = pd.read_csv('data/seg_Bxr.txt', header=None, encoding='utf-8', dtype=str)
+    data['label'] = pd.read_csv('data/label_xr.txt',header=None)
 
-    fea = Feature(data,tr=True)
-    # fea = Feature(data,tr=False)
+    # fea = Feature(data,tr=True)
+    fea = Feature(data,tr=False)
     #
     # fea.tfidf_sim([1,2,3])
     # print('tfidf_sim done.')
@@ -29,17 +33,17 @@ if __name__ =='__main__':
     # print('LDA_simlar done.')
     # fea.save()
     # exit()
-
+    # print('parsing...')
+    # os.system('java -jar jars/stanford_parser.jar data/%s data/%s data/%s data/%s'
+    #           % ('seg_Axr.txt', 'seg_Bxr.txt', 'parses_A.txt', 'parses_B.txt'))
+    # print('parsing done.')
+    # fea.syntactic('data/parses_A.txt', 'data/parses_B.txt')
+    # print('syntactic done.')
+    # fea.save()
     fea.load()
 
-    # for name in fea.features.columns:
-    #    fea.features.to_csv('fea/'+name+'.csv', columns=[name],index=None)
-
-    # for name in ['1-share','2-share','4-share','6-share','ed','tfidf_share',
-    #              '1-tfidf_share','3-tfidf_share']:
-    #     fea.features[name] = pd.read_csv('fea/'+name+'.csv')
-
-    valid_index = np.load('data/valid_index.npy')
+    # valid_index = np.load('data/valid_index.npy')
+    valid_index = np.load('data/valid_index_xr.npy')
     train_index = list(set(valid_index)^set(data.index))
     train_data = fea.features.iloc[train_index]
     valid_data = fea.features.iloc[valid_index]
