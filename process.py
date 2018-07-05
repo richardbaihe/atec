@@ -28,7 +28,27 @@ def get_vocab(data,col_name,vocab_path):
         for line in f_voc:
             dic[line.strip()]=1
     return dic
+def tokenizer_char(txt):
 
+    def seg_zh(matched):
+        begin, end = matched.regs[0]
+        phrase = matched.string[begin:end]
+        return ' '.join(list(phrase))
+
+    def match_en(matched):
+        begin, end = matched.regs[0]
+        word = matched.string[begin:end]
+        if len(word)>1:
+            return ' '+word+' '
+        else:
+            return ''
+
+    txt = re.sub(u'[!“\"#$%&\'()+,-./:;<=>?@[\]^_`{|}~，。！？、【】「」～]+', '', txt)
+    txt = re.sub(u'[0-9]+\*+[0-9]+|[0-9]+|\*\*\*', ' num ', txt)
+    txt = re.sub(u'[a-zA-z]+', match_en, txt)
+    txt = re.sub(u'[\u4e00-\u9fa5]+', seg_zh, txt)
+    txt = re.sub('\s+', ' ', txt)
+    return txt
 
 
 def preprocess_word(data):
@@ -110,6 +130,38 @@ def preprocess_char(data,vocab_path):
     #         word = line.strip()
     #         stpwrdlst.append(word)
     # corpus['stop_seg_ABx'] = corpus['seg_ABx'].apply(lambda x:' '.join([i for i in x.split() if i not in stpwrdlst]))
+
+    data['char_Ax_unk'] = corpus['char_ABx_unk'][:len(corpus['char_ABx_unk'])//2]
+    # data['stop_seg_Ax'] = corpus['stop_seg_ABx'][:len(corpus['stop_seg_ABx'])//2]
+    data['char_Bx_unk'] = corpus['char_ABx_unk'][len(corpus['char_ABx_unk'])//2:]
+    # data['stop_seg_Bx'] = corpus['stop_seg_ABx'][len(corpus['stop_seg_ABx'])//2:]
+
+    # for name in ['char_Ax','char_Bx']:
+    #     data.to_csv('data/'+name+'.txt',columns=[name],index=None,encoding='utf-8',header=None)
+    if 'label' in data.columns:
+        data.to_csv('data/'+'char_AB_unk.tsv',sep='\t',columns=['char_Ax_unk','char_Bx_unk','label'],header=None,index=None)
+    else:
+        data.to_csv('data/'+'char_AB_unk.tsv',sep='\t',columns=['char_Ax_unk','char_Bx_unk'],header=None,index=None)
+
+    #os.system('./preprocess/BPE/sh.char.sh')
+
+def preprocess_char_wkx(data,vocab_path):
+    #TODO: 简繁转换;Stop chars
+    corpus = pd.DataFrame(pd.concat([data['A'],data['B']]),columns=['AB'])
+    # 错字
+    repl = {'花贝':'花呗','借贝':'借呗'}
+    for item in repl.items():
+        origin = item[0]
+        target = item[1]
+        pattern = re.compile(origin)
+        corpus['ABx'] = corpus['AB'].apply(lambda x: re.sub(pattern, target, x))
+
+    corpus['char_ABx'] = corpus['ABx'].apply(tokenizer_char)
+
+    vocab = get_vocab(corpus, col_name='char_ABx', vocab_path=vocab_path)
+    def unk(x):
+        return x if x in vocab.keys() else 'UNK'
+    corpus['char_ABx_unk'] = corpus['char_ABx'].apply(lambda x: ' '.join([unk(i) for i in x.split(' ')]))
 
     data['char_Ax_unk'] = corpus['char_ABx_unk'][:len(corpus['char_ABx_unk'])//2]
     # data['stop_seg_Ax'] = corpus['stop_seg_ABx'][:len(corpus['stop_seg_ABx'])//2]
