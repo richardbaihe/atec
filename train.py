@@ -40,10 +40,12 @@ if __name__ == '__main__':
     parser.add_argument('--pos_weight', type=float, default=0.8)
     args = parser.parse_args()
 
-    data_origin = pd.read_csv('data/origin/atec_nlp_sim_train.csv',sep='\t',index_col=0,names=['A','B','label'])
-    data_add = pd.read_csv('data/origin/atec_nlp_sim_train_add.csv',sep='\t',index_col=0,names=['A','B','label'])
-    data = pd.concat([data_origin,data_add],ignore_index=True)
-    preprocess_char_wkx(data,args.encoder_path)
-
+    #data_origin = pd.read_csv('data/origin/atec_nlp_sim_train.csv',sep='\t',index_col=0,names=['A','B','label'])
+    #data_add = pd.read_csv('data/origin/atec_nlp_sim_train_add.csv',sep='\t',index_col=0,names=['A','B','label'])
+    #data = pd.concat([data_origin,data_add],ignore_index=True)
+    
+    #data = pd.read_csv('data/generated_data/all.tsv',sep='\t',names=['A','B','label'])
+    #preprocess_char_wkx(data,args)
+    print('process finished')
     model = LM_transformer(args)
     model.train()

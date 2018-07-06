@@ -38,8 +38,8 @@ lr_schedules = {
 }
 
 def _norm(x, g=None, b=None, e=1e-5, axis=[1]):
-    u = tf.reduce_mean(x, axis=axis, keepdims=True)
-    s = tf.reduce_mean(tf.square(x-u), axis=axis, keepdims=True)
+    u = tf.reduce_mean(x, axis=axis, keep_dims=True)
+    s = tf.reduce_mean(tf.square(x-u), axis=axis, keep_dims=True)
     x = (x - u) * tf.rsqrt(s + e)
     if g is not None and b is not None:
         x = x*g + b
@@ -303,12 +303,15 @@ class LM_transformer():
     def train(self):
         def trva_split(data, index):
             return [data[i] for i in index]
-        self.x1, self.x2, self.y = encode_dataset(self.text_encoder, atec(data_dir) )
+        x1, x2, y = encode_dataset(self.text_encoder, atec(data_dir) )
 
-        valid_index = np.load('data/valid_index.npy').tolist()
-        train_index = list(set(valid_index) ^ set(range(len(self.y))))
-        trX1, trX2, trY = trva_split(self.x1, train_index), trva_split(self.x2, train_index), trva_split(self.y, train_index)
-        vaX1, vaX2, vaY = trva_split(self.x1, valid_index), trva_split(self.x2, valid_index), trva_split(self.y, valid_index)
+        valid_index = np.load('data/valid_index.npy')
+        if data_dir=='data/para.tsv':
+            valid_index = np.concatenate([valid_index,valid_index+len(y)//4,valid_index+len(y)//2,valid_index+3*len(y)//4])
+        valid_index = valid_index.tolist()
+        train_index = list(set(valid_index) ^ set(range(len(y))))
+        trX1, trX2, trY = trva_split(x1, train_index), trva_split(x2, train_index), trva_split(y, train_index)
+        vaX1, vaX2, vaY = trva_split(x1, valid_index), trva_split(x2, valid_index), trva_split(y, valid_index)
         trX, trM = self.transform_roc(trX1, trX2)
         vaX, vaM = self.transform_roc(vaX1, vaX2)
 

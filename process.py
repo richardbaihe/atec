@@ -145,7 +145,8 @@ def preprocess_char(data,vocab_path):
 
     #os.system('./preprocess/BPE/sh.char.sh')
 
-def preprocess_char_wkx(data,vocab_path):
+def preprocess_char_wkx(data,args):
+    vocab_path=args.encoder_path
     #TODO: 简繁转换;Stop chars
     corpus = pd.DataFrame(pd.concat([data['A'],data['B']]),columns=['AB'])
     # 错字
@@ -171,8 +172,8 @@ def preprocess_char_wkx(data,vocab_path):
     # for name in ['char_Ax','char_Bx']:
     #     data.to_csv('data/'+name+'.txt',columns=[name],index=None,encoding='utf-8',header=None)
     if 'label' in data.columns:
-        data.to_csv('data/'+'char_AB_unk.tsv',sep='\t',columns=['char_Ax_unk','char_Bx_unk','label'],header=None,index=None)
+        data.to_csv(args.data_dir,sep='\t',columns=['char_Ax_unk','char_Bx_unk','label'],header=None,index=None)
     else:
-        data.to_csv('data/'+'char_AB_unk.tsv',sep='\t',columns=['char_Ax_unk','char_Bx_unk'],header=None,index=None)
+        data.to_csv(args.data_dir,sep='\t',columns=['char_Ax_unk','char_Bx_unk'],header=None,index=None)
 
     #os.system('./preprocess/BPE/sh.char.sh')
