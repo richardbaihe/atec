@@ -38,6 +38,7 @@ if __name__ == '__main__':
     parser.add_argument('--e', type=float, default=1e-8)
     parser.add_argument('--pre_load', type=bool, default=False)
     parser.add_argument('--pos_weight', type=float, default=0.8)
+    parser.add_argument('--new_model', action='store_true')
     args = parser.parse_args()
 
     #data_origin = pd.read_csv('data/origin/atec_nlp_sim_train.csv',sep='\t',index_col=0,names=['A','B','label'])
@@ -46,6 +47,6 @@ if __name__ == '__main__':
     
     #data = pd.read_csv('data/generated_data/all.tsv',sep='\t',names=['A','B','label'])
     #preprocess_char_wkx(data,args)
-    print('process finished')
+    #print('process finished')
     model = LM_transformer(args)
     model.train()

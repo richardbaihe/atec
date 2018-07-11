@@ -334,12 +334,14 @@ class LM_transformer():
             else:
                 self.n_transfer = 1+self.n_transfer*12
             self.sess.run([p.assign(ip) for p, ip in zip(self.params[:self.n_transfer], init_params[:self.n_transfer])])
-
+        if not new_model:
+            print('loading old model')
+            self.load()
+            print('load success')
         n_updates = 0
         n_epochs = 0
         self.save(os.path.join(save_dir, desc, 'best_params.jl'))
         self.best_score = 0
-
         def log():
             # global best_score
             tr_logits, tr_cost = self.iter_apply(trX[:n_valid], trM[:n_valid], trY[:n_valid])
@@ -360,7 +362,7 @@ class LM_transformer():
             for xmb, mmb, ymb in iter_data((shuffle(trX, trM, trY, random_state=np.random)), n_batch=self.n_batch_train, truncate=True, verbose=True):
                 cost, _ = self.sess.run([self.clf_loss, self.train], {self.X_train:xmb, self.M_train:mmb, self.Y_train:ymb})
                 n_updates += 1
-                if n_updates%100==0 :
+                if n_updates%1000==0 :
                     log()
             n_epochs += 1
             log()
@@ -399,3 +401,6 @@ class LM_transformer():
     def save(self,path):
         ps = self.sess.run(self.params)
         joblib.dump(ps, make_path(path),protocol=2)
+    def load(self):
+        self.sess.run(
+            [p.assign(ip) for p, ip in zip(self.params, joblib.load(os.path.join(save_dir, desc, 'best_params.jl')))])
