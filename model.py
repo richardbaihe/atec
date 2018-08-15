@@ -39,8 +39,8 @@ lr_schedules = {
 }
 
 def _norm(x, g=None, b=None, e=1e-5, axis=[1]):
-    u = tf.reduce_mean(x, axis=axis, keepdims=True)
-    s = tf.reduce_mean(tf.square(x-u), axis=axis, keepdims=True)
+    u = tf.reduce_mean(x, axis=axis, keep_dims=True)
+    s = tf.reduce_mean(tf.square(x-u), axis=axis, keep_dims=True)
     x = (x - u) * tf.rsqrt(s + e)
     if g is not None and b is not None:
         x = x*g + b
@@ -597,10 +597,30 @@ class LM_transformer_similar():
         n_train = len(trY)
         n_valid = len(vaY)
         self.n_updates_total = (n_train // self.n_batch_train) * n_iter
+        self.build_graph()
+        if pre_load:
+            shapes = json.load(open('model/params_shapes.json'))
+            offsets = np.cumsum([np.prod(shape) for shape in shapes])
+            init_params = [np.load('model/params_{}.npy'.format(n)) for n in range(10)]
+            init_params = np.split(np.concatenate(init_params, 0), offsets)[:-1]
+            init_params = [param.reshape(shape) for param, shape in zip(init_params, shapes)]
+            init_params[0] = init_params[0][:+n_ctx]
+            init_params[0] = np.concatenate([init_params[1], (np.random.randn(self.n_special, n_embd)*0.02).astype(np.float32), init_params[0]], 0)
+            del init_params[1]
 
+            if self.n_transfer == -1:
+                self.n_transfer = 0
+            else:
+                self.n_transfer = 1+self.n_transfer*12
+            self.sess.run([p.assign(ip) for p, ip in zip(self.params[:self.n_transfer], init_params[:self.n_transfer])])
+        if not new_model:
+            print('loading old model')
+            self.load()
+            print('load success')
         n_updates = 0
         n_epochs = 0
-
+        self.save(os.path.join(save_dir, desc, 'best_params.jl'))
+        self.best_score = 0
         def log():
             def iter_apply(Xs, Ms, Ys):
                 fns = [lambda x: np.concatenate(x, 0), lambda x: float(np.sum(x))]
@@ -624,46 +644,33 @@ class LM_transformer_similar():
             va_cost = va_cost / n_valid
             tr_f1 = f1_score(trY[:n_valid], np.argmax(tr_logits, 1)) * 100.
             va_f1 = f1_score(vaY, np.argmax(va_logits, 1)) * 100.
-            tf.logging.info('%d %d %.3f %.3f %.2f %.2f' % (n_epochs, n_updates, tr_cost, va_cost, tr_f1, va_f1))
+            self.logger.log(n_epochs=n_epochs, n_updates=n_updates, tr_cost=tr_cost, va_cost=va_cost, tr_f1=tr_f1,
+                       va_f1=va_f1)
+            print('%d %d %.3f %.3f %.2f %.2f' % (n_epochs, n_updates, tr_cost, va_cost, tr_f1, va_f1))
+            score = va_f1
+            if score > self.best_score:
+                self.best_score = score
+                self.save(os.path.join(save_dir, desc, 'best_params.jl'))
 
-        scaffold = tf.train.Scaffold(saver=saver)
-        summary_hook = tf.train.SummarySaverHook(save_steps=1000, output_dir=save_dir,summary_op=summary_op)
-        hooks = [summary_hook]
-        tf_config = tf.ConfigProto(allow_soft_placement=True)
-        tf_config.gpu_options.allow_growth = True
-        with tf.train.MonitoredTrainingSession(hooks=hooks,
-                                               save_checkpoint_secs=600,
-                                               checkpoint_dir=save_dir,
-                                               scaffold=scaffold,
-                                               config=tf_config) as sess:
-            if preload:
-                sess.run(
-                    [p.assign(ip) for p, ip in
-                     zip(self.params, joblib.load(save_dir+ 'model_lm.params'))])
+        for i in range(n_iter):
+            for xmb, mmb, ymb in iter_data((shuffle(trX, trM, trY, random_state=np.random)), n_batch=self.n_batch_train, truncate=True, verbose=True):
+                cost, _ = self.sess.run([self.clf_loss, self.train], {self.X_train:xmb, self.M_train:mmb, self.Y_train:ymb})
+                n_updates += 1
+                if n_updates%1000==0 :
+                    log()
+            n_epochs += 1
+            log()
 
-            for i in range(n_iter):
-                for xmb, mmb, ymb in iter_data((shuffle(trX, trM, trY, random_state=np.random)), n_batch=self.n_batch_train, truncate=True, verbose=True):
-                    cost, _ = sess.run([clf_loss, train_op], {X_train:xmb, M_train:mmb, Y_train:ymb})
-                    n_updates += 1
-                    if n_updates%1000==0 :
-                        log()
-                n_epochs += 1
-                log()
-
-            teX1, teX2, _ = encode_dataset(self.text_encoder, atec(data_dir))
-            teX, teM = self.transform_roc(teX1, teX2)
-
-            pred_fn = lambda x: np.argmax(x, 1)
-            logits = []
-            for xmb, mmb in iter_data((teX, teM), n_batch=self.n_batch_train, truncate=False, verbose=True):
-                n = len(xmb)
-                if n == self.n_batch_train:
-                    logits.append(sess.run(self.eval_mgpu_logits, {X_train: xmb, M_train: mmb}))
-                else:
-                    logits.append(sess.run(self.eval_logits, {X: xmb, M: mmb}))
-            logits = np.concatenate(logits, 0)
-            predictions = pred_fn(logits)
-            return predictions
+    def iter_predict(self,Xs, Ms):
+        logits = []
+        for xmb, mmb in iter_data((Xs, Ms), n_batch=self.n_batch_train, truncate=False, verbose=True):
+            n = len(xmb)
+            if n == self.n_batch_train:
+                logits.append(self.sess.run(self.eval_mgpu_logits, {self.X_train: xmb, self.M_train: mmb}))
+            else:
+                logits.append(self.sess.run(self.eval_logits, {self.X: xmb, self.M: mmb}))
+        logits = np.concatenate(logits, 0)
+        return logits
 
     def mgpu_predict(self,*xs):
         gpu_ops = []
@@ -675,3 +682,19 @@ class LM_transformer_similar():
         ops = [tf.concat(op, 0) for op in zip(*gpu_ops)]
         return ops
 
+    def predict(self,data_dir):
+        teX1, teX2, _ = encode_dataset(self.text_encoder, atec(data_dir))
+        teX, teM = self.transform_roc(teX1, teX2)
+        self.build_graph()
+        self.sess.run(
+            [p.assign(ip) for p, ip in zip(self.params, joblib.load(os.path.join(save_dir, desc, 'best_params.jl')))])
+        pred_fn = lambda x: np.argmax(x, 1)
+        predictions = pred_fn(self.iter_predict(teX, teM))
+        return predictions
+
+    def save(self,path):
+        ps = self.sess.run(self.params)
+        joblib.dump(ps, make_path(path),protocol=2)
+    def load(self):
+        self.sess.run(
+            [p.assign(ip) for p, ip in zip(self.params, joblib.load(os.path.join(save_dir, desc, 'best_params.jl')))])

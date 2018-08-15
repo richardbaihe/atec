@@ -44,13 +44,15 @@ if __name__ == '__main__':
     parser.add_argument('--b2', type=float, default=0.999)
     parser.add_argument('--e', type=float, default=1e-8)
     parser.add_argument('--pos_weight', type=float, default=0.8)
-    parser.add_argument('--bootstrap-host', type=str, help='The hostname or IP of the bootstrapping server')
-    parser.add_argument('--bootstrap-port', type=int, help='The port of the bootstrapping server')
-    parser.add_argument('--num_ps', type=int, default=1)
+    parser.add_argument('--new_model', action='store_true')
     args = parser.parse_args()
 
-    #preprocess_char(args)
-    model = LM_transformer_pretrain(args)
-    #model.encode_to_tfrecords(tfrecord_filename=args.tfrecord_filename,origin_filename=args.data_dir)
-
-    model.ccc_train()
+    #data_origin = pd.read_csv('data/origin/atec_nlp_sim_train.csv',sep='\t',index_col=0,names=['A','B','label'])
+    #data_add = pd.read_csv('data/origin/atec_nlp_sim_train_add.csv',sep='\t',index_col=0,names=['A','B','label'])
+    #data = pd.concat([data_origin,data_add],ignore_index=True)
+    
+    #data = pd.read_csv('data/generated_data/all.tsv',sep='\t',names=['A','B','label'])
+    #preprocess_char_wkx(data,args)
+    #print('process finished')
+    model = LM_transformer(args)
+    model.train()
